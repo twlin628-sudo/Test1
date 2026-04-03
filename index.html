@@ -6,7 +6,6 @@
 <title>電梯帝國</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-/* ── RESET & ROOT ── */
 :root {
   --bg:      #0b0e18;
   --bg2:     #121623;
@@ -23,12 +22,12 @@
   --red:     #f87171;
   --mono: 'Share Tech Mono', monospace;
   --sans: 'Noto Sans TC', sans-serif;
-  /* iPhone 16 = 390 × 844 logical px */
   --phone-w: 390px;
   --phone-h: 844px;
-  --floor-h: 64px;
-  --elev-w:  52px;
-  --elev-h:  58px;
+  /* 5 floors visible → each floor = game-area-h / 5 */
+  --floor-h: 88px;
+  --elev-w:  56px;
+  --elev-h:  80px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html {
@@ -42,8 +41,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
   overflow: hidden;
   position: relative;
   border-radius: 16px;
@@ -53,55 +51,53 @@ body {
 /* ── TOPBAR ── */
 #topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px 8px;
+  padding: 12px 16px 10px;
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-#game-title { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 2px; }
+#game-title { font-family: var(--mono); font-size: 15px; color: var(--accent); letter-spacing: 2px; }
 .hstats { display: flex; gap: 8px; }
 .hstat {
   display: flex; flex-direction: column; align-items: center;
   background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 6px; padding: 3px 10px; min-width: 56px;
+  border-radius: 6px; padding: 4px 12px; min-width: 64px;
 }
-.hstat-lbl { font-size: 8px; color: var(--text3); font-family: var(--mono); letter-spacing: 1px; }
-.hstat-val { font-family: var(--mono); font-size: 14px; font-weight: 700; }
+.hstat-lbl { font-size: 10px; color: var(--text3); font-family: var(--mono); letter-spacing: 1px; }
+.hstat-val { font-family: var(--mono); font-size: 16px; font-weight: 700; }
 #s-score { color: var(--accent); }
-#s-del   { color: var(--green); }
-#s-time  { color: var(--text2); font-size: 12px; }
+#s-floors { color: var(--gold); }
+#s-time  { color: var(--text2); font-size: 13px; }
 
-/* ── CURRENT FLOOR INDICATOR ── */
+/* ── FLOOR INDICATOR ── */
 #floor-indicator {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 14px;
+  padding: 8px 16px;
   background: var(--bg3);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-#fi-label  { font-size: 10px; color: var(--text3); font-family: var(--mono); }
-#fi-floor  { font-family: var(--mono); font-size: 18px; color: var(--accent); font-weight: 700; }
-#fi-pax    { font-family: var(--mono); font-size: 11px; color: var(--text2); }
-#fi-dir    { font-size: 16px; }
-#fi-state  { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+#fi-label  { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+#fi-floor  { font-family: var(--mono); font-size: 22px; color: var(--accent); font-weight: 700; }
+#fi-pax    { font-family: var(--mono); font-size: 13px; color: var(--text2); }
+#fi-dir    { font-size: 20px; }
+#fi-state  { font-size: 11px; color: var(--text3); font-family: var(--mono); text-align: right; }
 
-/* ── VIEWPORT: floors scroll, elevator fixed ── */
+/* ── GAME AREA ── */
 #game-area {
   flex: 1;
   position: relative;
   overflow: hidden;
 }
 
-/* The strip that actually scrolls */
 #floors-strip {
   position: absolute;
   top: 0; left: 0;
   width: 100%;
-  /* height set by JS */
   will-change: transform;
 }
 
-/* One floor row */
+/* ── FLOOR ROW ── */
 .floor-row {
   width: 100%;
   height: var(--floor-h);
@@ -110,50 +106,49 @@ body {
   border-bottom: 1px solid var(--border);
   position: relative;
   user-select: none;
+  cursor: pointer;
+  transition: background 0.1s;
 }
+.floor-row:active { background: rgba(56,189,248,0.04); }
 .floor-row.is-current {
-  background: rgba(56,189,248,0.06);
-  border-bottom-color: rgba(56,189,248,0.2);
+  background: rgba(56,189,248,0.07);
+  border-bottom-color: rgba(56,189,248,0.22);
 }
 .floor-num {
-  font-family: var(--mono); font-size: 11px; color: var(--text3);
-  width: 28px; text-align: right; padding-right: 5px; flex-shrink: 0;
+  font-family: var(--mono); font-size: 14px; color: var(--text3);
+  width: 34px; text-align: right; padding-right: 6px; flex-shrink: 0;
 }
 .floor-arrows {
-  width: 16px; flex-shrink: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  width: 20px; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
-.arr-up   { font-size: 9px;  color: var(--green); line-height: 1; }
-.arr-down { font-size: 9px;  color: var(--red);   line-height: 1; }
+.arr-up   { font-size: 11px; color: var(--green); line-height: 1; }
+.arr-down { font-size: 11px; color: var(--red);   line-height: 1; }
 .floor-pax {
   flex: 1;
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: center; gap: 5px;
   padding: 0 8px;
   overflow: hidden;
 }
-/* gap on right side for elevator shaft */
-.floor-shaft-gap { width: 70px; flex-shrink: 0; }
+.floor-shaft-gap { width: 74px; flex-shrink: 0; }
 
-/* ── PAX FIGURES ── */
+/* ── PAX ── */
 .pax-fig {
-  display: flex; flex-direction: column; align-items: center;
-  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
 }
-.pax-head { width: 9px; height: 9px; border-radius: 50%; }
-.pax-body { width: 11px; height: 12px; border-radius: 3px 3px 0 0; }
-.pax-dest { font-family: var(--mono); font-size: 7px; color: var(--text3); margin-top: 1px; }
-.pax-normal .pax-head, .pax-normal .pax-body { background: var(--accent); }
-.pax-vip    .pax-head, .pax-vip    .pax-body { background: var(--gold); }
+.pax-head { width: 11px; height: 11px; border-radius: 50%; }
+.pax-body { width: 13px; height: 14px; border-radius: 3px 3px 0 0; }
+.pax-dest { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 1px; }
+.pax-normal .pax-head,
+.pax-normal .pax-body { background: var(--accent); }
 
-/* ── ELEVATOR SHAFT (fixed, right side) ── */
+/* ── ELEVATOR SHAFT (fixed) ── */
 #elev-shaft {
   position: absolute;
-  right: 12px;
-  top: 0; bottom: 0;
-  width: 60px;
+  right: 10px; top: 0; bottom: 0;
+  width: 66px;
   pointer-events: none;
 }
-/* The track line */
 #elev-shaft::before {
   content: '';
   position: absolute;
@@ -162,119 +157,122 @@ body {
   background: var(--border2);
   transform: translateX(-50%);
 }
-/* The elevator car — always vertically centred in #game-area */
 #elev-car {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 50%; top: 50%;
   transform: translate(-50%, -50%);
   width: var(--elev-w);
   height: var(--elev-h);
-  border-radius: 6px;
+  border-radius: 8px;
   border: 2px solid var(--accent);
   background: rgba(56,189,248,0.13);
   color: var(--accent);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px;
   pointer-events: all;
-  cursor: pointer;
-  box-shadow: 0 0 0 0 var(--accent);
   transition: box-shadow 0.3s;
 }
 #elev-car.door-open {
-  box-shadow: 0 0 16px rgba(56,189,248,0.5);
-  animation: doorpulse 0.6s;
+  box-shadow: 0 0 20px rgba(56,189,248,0.55);
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(52,211,153,0.13);
+  animation: doorpulse 0.5s;
 }
-@keyframes doorpulse { 0%{opacity:0.6} 50%{opacity:1} 100%{opacity:1} }
-#elev-dir  { font-size: 14px; line-height: 1; }
-#elev-id   { font-family: var(--mono); font-size: 10px; font-weight: 700; opacity: 0.9; }
-#elev-cnt  { font-family: var(--mono); font-size: 9px; opacity: 0.75; }
+@keyframes doorpulse { 0%{opacity:0.5} 50%{opacity:1} 100%{opacity:1} }
+#elev-dir { font-size: 16px; line-height: 1; }
+#elev-id  { font-family: var(--mono); font-size: 12px; font-weight: 700; opacity: 0.9; }
+#elev-cnt { font-family: var(--mono); font-size: 11px; opacity: 0.8; }
 
-/* ── BOTTOM CONTROLS ── */
-#controls {
-  flex-shrink: 0;
-  background: var(--bg2);
-  border-top: 1px solid var(--border);
-  padding: 10px 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-#ctrl-row {
-  display: flex; gap: 10px;
-}
-.ctrl-btn {
-  flex: 1;
-  height: 58px;
-  border-radius: 10px;
-  border: 2px solid;
-  font-family: var(--mono);
-  font-size: 26px;
-  cursor: pointer;
-  background: transparent;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.1s, transform 0.08s;
-  -webkit-tap-highlight-color: transparent;
-}
-.ctrl-btn:active { transform: scale(0.94); }
-#btn-up   { border-color: var(--green); color: var(--green); }
-#btn-up.active   { background: rgba(52,211,153,0.18); }
-#btn-down { border-color: var(--red);   color: var(--red); }
-#btn-down.active { background: rgba(248,113,113,0.18); }
-#btn-stop {
-  width: 100%;
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid var(--border2);
-  color: var(--text2);
-  background: transparent;
-  font-family: var(--mono);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.1s;
-  -webkit-tap-highlight-color: transparent;
-}
-#btn-stop:active { background: var(--bg3); }
-.ctrl-hint { font-size: 9px; color: var(--text3); font-family: var(--mono); text-align: center; }
-
-/* ── FLOAT SCORE ── */
-.float-score {
-  position: fixed; pointer-events: none;
-  font-family: var(--mono); font-size: 15px; font-weight: 700;
-  z-index: 999;
-  animation: floatUp 1s ease-out forwards;
-}
-@keyframes floatUp {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-48px) scale(0.8); }
-}
-
-/* ── LOG strip (slide-in items) ── */
+/* ── LOG strip ── */
 #log-strip {
   position: absolute;
   left: 0; bottom: 0;
   width: calc(100% - 80px);
   pointer-events: none;
   display: flex; flex-direction: column-reverse;
-  gap: 2px;
-  padding: 4px 8px;
+  gap: 3px; padding: 6px 10px;
   z-index: 20;
-  max-height: 80px;
-  overflow: hidden;
+  max-height: 90px; overflow: hidden;
 }
 .log-pill {
-  font-family: var(--mono); font-size: 10px;
-  padding: 2px 8px; border-radius: 4px;
+  font-family: var(--mono); font-size: 11px;
+  padding: 3px 9px; border-radius: 5px;
   width: fit-content;
   animation: fadeInUp 0.3s ease;
 }
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity:0; transform:translateY(6px); }
+  to   { opacity:1; transform:translateY(0); }
 }
 .log-good { background: rgba(52,211,153,0.15); color: var(--green); }
 .log-gold { background: rgba(251,191,36,0.15); color: var(--gold); }
 .log-info { background: rgba(56,189,248,0.12); color: var(--accent); }
+
+/* ── CONTROLS ── */
+#controls {
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 14px 16px 24px;   /* more top padding so buttons sit higher */
+  display: flex; flex-direction: column; gap: 10px;
+}
+#ctrl-row {
+  display: flex; gap: 10px;
+}
+.ctrl-btn {
+  flex: 1;
+  height: 68px;
+  border-radius: 12px;
+  border: 2px solid;
+  font-family: var(--mono);
+  font-size: 30px;
+  cursor: pointer;
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.ctrl-btn:active { transform: scale(0.93); }
+#btn-up   { border-color: var(--green); color: var(--green); }
+#btn-up.active   { background: rgba(52,211,153,0.2); }
+#btn-down { border-color: var(--red);   color: var(--red); }
+#btn-down.active { background: rgba(248,113,113,0.2); }
+
+#btn-stop {
+  width: 100%;
+  height: 52px;           /* taller = easier to tap */
+  border-radius: 10px;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  background: rgba(56,189,248,0.08);
+  font-family: var(--mono);
+  font-size: 16px;         /* bigger text */
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+#btn-stop:active { background: rgba(56,189,248,0.22); }
+
+.ctrl-hint {
+  font-size: 11px; color: var(--text3);
+  font-family: var(--mono); text-align: center;
+}
+
+/* ── FLOAT SCORE ── */
+.float-score {
+  position: fixed; pointer-events: none;
+  font-family: var(--mono); font-size: 17px; font-weight: 700;
+  z-index: 999;
+  animation: floatUp 1s ease-out forwards;
+}
+@keyframes floatUp {
+  0%   { opacity:1; transform:translateY(0) scale(1); }
+  100% { opacity:0; transform:translateY(-52px) scale(0.8); }
+}
 </style>
 </head>
 <body>
@@ -283,62 +281,70 @@ body {
 <div id="topbar">
   <div id="game-title">ELEVATOR</div>
   <div class="hstats">
-    <div class="hstat"><div class="hstat-lbl">SCORE</div><div class="hstat-val" id="s-score">0</div></div>
-    <div class="hstat"><div class="hstat-lbl">SENT</div><div class="hstat-val" id="s-del">0</div></div>
-    <div class="hstat"><div class="hstat-lbl">TIME</div><div class="hstat-val" id="s-time">00:00</div></div>
+    <div class="hstat">
+      <div class="hstat-lbl">SCORE</div>
+      <div class="hstat-val" id="s-score">0</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-lbl">FLOORS</div>
+      <div class="hstat-val" id="s-floors">0</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-lbl">TIME</div>
+      <div class="hstat-val" id="s-time">00:00</div>
+    </div>
   </div>
 </div>
 
-<!-- CURRENT FLOOR STRIP -->
+<!-- FLOOR INDICATOR -->
 <div id="floor-indicator">
   <div>
     <div id="fi-label">CURRENT FLOOR</div>
     <div id="fi-floor">1F</div>
   </div>
-  <div id="fi-dir">─</div>
-  <div style="text-align:right">
-    <div id="fi-pax">0 / 6 人</div>
+  <div id="fi-dir" style="color:var(--text3)">─</div>
+  <div>
+    <div id="fi-pax">0 / 10 人</div>
     <div id="fi-state">待機</div>
   </div>
 </div>
 
-<!-- GAME AREA: scrolling floors + fixed elevator -->
+<!-- GAME AREA -->
 <div id="game-area">
   <div id="floors-strip"></div>
-
-  <!-- Shaft + fixed elevator car -->
   <div id="elev-shaft">
     <div id="elev-car">
       <div id="elev-dir">─</div>
       <div id="elev-id">A</div>
-      <div id="elev-cnt">0/6</div>
+      <div id="elev-cnt">0/10</div>
     </div>
   </div>
-
-  <!-- Floating log -->
   <div id="log-strip"></div>
 </div>
 
-<!-- BOTTOM CONTROLS -->
+<!-- CONTROLS -->
 <div id="controls">
+  <button id="btn-stop">■ 開門 / 停止</button>
   <div id="ctrl-row">
     <button class="ctrl-btn" id="btn-up">▲</button>
     <button class="ctrl-btn" id="btn-down">▼</button>
   </div>
-  <button id="btn-stop">■ 停止 / 開門</button>
-  <div class="ctrl-hint">按住▲▼移動 · 放開自動停靠 · 點樓層直達</div>
+  <div class="ctrl-hint">按住 ▲▼ 移動 · 按開門手動上下客</div>
 </div>
 
 <script>
 // ═══════════════════════════════
 //  CONSTANTS
 // ═══════════════════════════════
-const NUM_FLOORS  = 20;
-const CAPACITY    = 6;
-const FLOOR_H     = 64;       // must match CSS --floor-h
-const SPEED       = FLOOR_H * 2.6;  // px/sec (floors per sec)
-const DOOR_TIME   = 800;      // ms
-const SPAWN_MS    = 1600;
+const NUM_FLOORS = 20;
+const CAPACITY   = 10;
+const FLOOR_H    = 88;        // matches CSS --floor-h
+const SPEED      = FLOOR_H * 2.4;  // px / sec
+const DOOR_TIME  = 900;       // ms doors stay open
+const SPAWN_MS   = 1800;      // ms between spawns
+
+// How many floors are visible at once (5) → game-area height = 5 * FLOOR_H
+// We set game-area flex:1 and floors are FLOOR_H each, so 5 fill nicely.
 
 // ═══════════════════════════════
 //  STATE
@@ -347,37 +353,38 @@ let G = {};
 
 function initState() {
   G = {
-    // elevator logical state
-    floor:      0,          // current floor index (0 = ground)
-    pixelY:     0,          // pixel offset from floor-0 bottom (goes up as floor goes up)
-    dir:        0,          // -1 | 0 | 1
+    floor:      0,
+    pixelY:     0,
+    dir:        0,
     pressing:   false,
-    state:      'idle',     // idle | moving | door
+    state:      'idle',   // idle | moving | door
     doorTimer:  0,
-    target:     -1,         // click-to-go floor, -1 = none
+    target:     -1,
     pax:        [],
 
-    // game
     score:      0,
-    delivered:  0,
+    floorsCount:0,
     elapsed:    0,
     lastTime:   null,
     passengers: [],
     spawnTimer: 0,
     uid:        0,
     logs:       [],
+
+    // track last counted floor for floor-move counter
+    lastCountedFloor: 0,
   };
 }
 
 // ═══════════════════════════════
-//  BUILD FLOORS DOM
+//  BUILD DOM
 // ═══════════════════════════════
 function buildFloors() {
   const strip = document.getElementById('floors-strip');
   strip.innerHTML = '';
   strip.style.height = (NUM_FLOORS * FLOOR_H) + 'px';
 
-  // Floors rendered top-to-bottom = high floor at top, floor 0 at bottom
+  // top of strip = highest floor
   for (let f = NUM_FLOORS - 1; f >= 0; f--) {
     const row = document.createElement('div');
     row.className = 'floor-row';
@@ -393,24 +400,14 @@ function buildFloors() {
 }
 
 // ═══════════════════════════════
-//  SCROLLING: keep current floor centred in view
-//  The strip origin is at the top of #game-area.
-//  Floor f DOM top = (NUM_FLOORS - 1 - f) * FLOOR_H
-//  We want that row to be centred in #game-area.
+//  SCROLL: keep current floor centred
 // ═══════════════════════════════
-function stripOffsetForFloor(floorF, pixelY) {
-  const gameH = document.getElementById('game-area').clientHeight;
-  // Exact pixel position within the strip for this fractional floor position
-  // pixelY = 0 means floor 0, pixelY = FLOOR_H means floor 1, etc.
-  // DOM top of floor 0's row = (NUM_FLOORS-1) * FLOOR_H
-  // So the "centre" of pixelY in strip coords:
-  const stripPosOfCurrent = (NUM_FLOORS - 1) * FLOOR_H - pixelY + FLOOR_H / 2;
-  // We want that to appear at gameH/2
-  return gameH / 2 - stripPosOfCurrent;
-}
-
 function applyScroll() {
-  const offset = stripOffsetForFloor(G.floor, G.pixelY);
+  const gameH = document.getElementById('game-area').clientHeight;
+  // strip top for floor f: (NUM_FLOORS - 1 - f) * FLOOR_H
+  // centre of current pixelY in strip coords:
+  const stripPos = (NUM_FLOORS - 1) * FLOOR_H - G.pixelY + FLOOR_H / 2;
+  const offset   = gameH / 2 - stripPos;
   document.getElementById('floors-strip').style.transform = `translateY(${offset}px)`;
 }
 
@@ -421,10 +418,7 @@ function pressUp(on) {
   if (G.state === 'door') return;
   document.getElementById('btn-up').classList.toggle('active', on);
   if (on) {
-    G.dir      = 1;
-    G.pressing = true;
-    G.target   = -1;
-    G.state    = 'moving';
+    G.dir = 1; G.pressing = true; G.target = -1; G.state = 'moving';
   } else {
     G.pressing = false;
     if (G.dir === 1 && G.state === 'moving') snapStop();
@@ -435,10 +429,7 @@ function pressDown(on) {
   if (G.state === 'door') return;
   document.getElementById('btn-down').classList.toggle('active', on);
   if (on) {
-    G.dir      = -1;
-    G.pressing = true;
-    G.target   = -1;
-    G.state    = 'moving';
+    G.dir = -1; G.pressing = true; G.target = -1; G.state = 'moving';
   } else {
     G.pressing = false;
     if (G.dir === -1 && G.state === 'moving') snapStop();
@@ -446,20 +437,35 @@ function pressDown(on) {
 }
 
 function snapStop() {
-  G.floor   = Math.round(G.pixelY / FLOOR_H);
-  G.pixelY  = G.floor * FLOOR_H;
-  G.dir     = 0;
+  G.floor    = Math.round(G.pixelY / FLOOR_H);
+  G.pixelY   = G.floor * FLOOR_H;
+  G.dir      = 0;
   G.pressing = false;
-  openDoors();
+  G.state    = 'idle';
+  // no auto door open — player must press the button
 }
 
 function clickFloor(f) {
   if (G.state === 'door') return;
-  if (f === G.floor) { openDoors(); return; }
+  if (f === G.floor) return; // same floor, do nothing (player uses btn-stop to open)
   G.target   = f;
   G.pressing = false;
   G.dir      = f > G.floor ? 1 : -1;
   G.state    = 'moving';
+}
+
+function doOpenDoor() {
+  // Called only by player pressing btn-stop
+  if (G.state === 'moving') {
+    // Snap to nearest floor first
+    G.floor   = Math.round(G.pixelY / FLOOR_H);
+    G.pixelY  = G.floor * FLOOR_H;
+    G.dir     = 0;
+    G.pressing = false;
+    G.target  = -1;
+  }
+  if (G.state === 'door') return; // already open
+  openDoors();
 }
 
 // ═══════════════════════════════
@@ -476,27 +482,27 @@ function updateElev(dt) {
   const px = SPEED * (dt / 1000);
   G.pixelY += G.dir * px;
 
-  // Clamp to building bounds
   const maxPx = (NUM_FLOORS - 1) * FLOOR_H;
   G.pixelY = Math.max(0, Math.min(maxPx, G.pixelY));
-  G.floor  = Math.round(G.pixelY / FLOOR_H);
 
-  // Hit wall while pressing → stop
+  // Count floor crossings
+  const newFloor = Math.round(G.pixelY / FLOOR_H);
+  if (newFloor !== G.lastCountedFloor) {
+    const diff = Math.abs(newFloor - G.lastCountedFloor);
+    G.floorsCount += diff;
+    G.lastCountedFloor = newFloor;
+  }
+  G.floor = newFloor;
+
+  // Wall stop while pressing
   if (G.pressing) {
     if ((G.dir === 1 && G.pixelY >= maxPx) || (G.dir === -1 && G.pixelY <= 0)) {
-      snapStop(); return;
-    }
-    // Drop-off auto-stop: snap to floor if someone wants off here
-    const f = Math.round(G.pixelY / FLOOR_H);
-    if (Math.abs(G.pixelY - f * FLOOR_H) < 3 && G.pax.some(p => p.dest === f)) {
-      G.pixelY = f * FLOOR_H;
-      G.floor  = f;
-      snapStop(); return;
+      snapStop();
     }
     return;
   }
 
-  // Click-to-go: reached target
+  // Click-to-go arrived
   if (G.target >= 0) {
     const tPx = G.target * FLOOR_H;
     if ((G.dir === 1 && G.pixelY >= tPx) || (G.dir === -1 && G.pixelY <= tPx)) {
@@ -505,7 +511,7 @@ function updateElev(dt) {
       G.target = -1;
       G.dir    = 0;
       G.state  = 'idle';
-      openDoors();
+      // no auto open — player presses button
     }
   }
 }
@@ -519,30 +525,28 @@ function openDoors() {
 
 function closeDoors() {
   document.getElementById('elev-car').classList.remove('door-open');
-  G.state = G.pressing ? 'moving' : 'idle';
-  if (!G.pressing) G.dir = 0;
+  G.state    = 'idle';
+  G.dir      = 0;
+  G.pressing = false;
 }
 
 function handleExchange() {
-  // Drop off
+  // Drop off passengers at this floor
   G.pax = G.pax.filter(p => {
     if (p.dest !== G.floor) return true;
-    const pts = p.type === 'vip' ? 3 : 1;
-    G.score += pts;
-    G.delivered++;
-    addLog(`${p.type==='vip'?'⭐':''}到達 ${G.floor+1}F +${pts}`, p.type==='vip'?'gold':'good');
-    floatScore(`+${pts}`, p.type==='vip'?'#fbbf24':'#38bdf8');
+    G.score++;
+    addLog(`到達 ${G.floor + 1}F  +1分`, 'good');
+    floatScore('+1', '#38bdf8');
     return false;
   });
 
-  // Board
+  // Board waiting passengers (no direction restriction when player manually opens)
   G.passengers.forEach(p => {
     if (!p.waiting || p.start !== G.floor) return;
     if (G.pax.length >= CAPACITY) return;
-    if (G.dir !== 0 && p.dir !== G.dir) return;
     p.waiting = false;
     G.pax.push(p);
-    addLog(`上梯 ${p.start+1}F→${p.dest+1}F`, 'info');
+    addLog(`上梯 ${p.start + 1}F → ${p.dest + 1}F`, 'info');
   });
 }
 
@@ -558,7 +562,7 @@ function spawnPax(now) {
   G.passengers.push({
     id: G.uid++, start, dest,
     dir: dest > start ? 1 : -1,
-    type: Math.random() < 0.12 ? 'vip' : 'normal',
+    type: 'normal',
     waiting: true,
   });
 }
@@ -566,40 +570,43 @@ function spawnPax(now) {
 // ═══════════════════════════════
 //  RENDER
 // ═══════════════════════════════
-function renderAll(now) {
-  // Scroll floors
+function renderAll() {
   applyScroll();
 
-  // Highlight current floor row
+  // Current floor highlight
   document.querySelectorAll('.floor-row').forEach(r => r.classList.remove('is-current'));
-  const curRow = document.getElementById(`fr-${G.floor}`);
-  if (curRow) curRow.classList.add('is-current');
+  const cur = document.getElementById(`fr-${G.floor}`);
+  if (cur) cur.classList.add('is-current');
 
-  // Elevator car visuals
-  const dirEl = document.getElementById('elev-dir');
-  dirEl.textContent = G.dir === 1 ? '▲' : G.dir === -1 ? '▼' : '─';
-  dirEl.style.color  = G.dir === 1 ? 'var(--green)' : G.dir === -1 ? 'var(--red)' : 'var(--accent)';
+  // Elevator car
+  const isDoor = G.state === 'door';
+  const dirEl  = document.getElementById('elev-dir');
+  dirEl.textContent = G.dir === 1 ? '▲' : G.dir === -1 ? '▼' : (isDoor ? '⊡' : '─');
+  dirEl.style.color = G.dir === 1 ? 'var(--green)' :
+                      G.dir === -1 ? 'var(--red)' :
+                      isDoor ? 'var(--green)' : 'var(--accent)';
   document.getElementById('elev-cnt').textContent = `${G.pax.length}/${CAPACITY}`;
 
-  // Floor indicator
+  // Floor indicator bar
   document.getElementById('fi-floor').textContent = `${G.floor + 1}F`;
   document.getElementById('fi-pax').textContent   = `${G.pax.length} / ${CAPACITY} 人`;
-  const stateMap = { idle:'待機', moving: G.dir===1?'上行':'下行', door:'開門' };
-  document.getElementById('fi-state').textContent = stateMap[G.state] || '';
-  document.getElementById('fi-dir').textContent   = G.dir === 1 ? '▲' : G.dir === -1 ? '▼' : '─';
-  document.getElementById('fi-dir').style.color    = G.dir === 1 ? 'var(--green)' : G.dir === -1 ? 'var(--red)' : 'var(--text3)';
+  const stMap = { idle:'待機', moving: G.dir === 1 ? '上行' : '下行', door:'開門中' };
+  document.getElementById('fi-state').textContent = stMap[G.state] || '待機';
+  const fiDir = document.getElementById('fi-dir');
+  fiDir.textContent = G.dir === 1 ? '▲' : G.dir === -1 ? '▼' : '─';
+  fiDir.style.color = G.dir === 1 ? 'var(--green)' : G.dir === -1 ? 'var(--red)' : 'var(--text3)';
 
   // Passengers on floors
   for (let f = 0; f < NUM_FLOORS; f++) {
-    const pArea  = document.getElementById(`fp-${f}`);
-    const aArea  = document.getElementById(`fa-${f}`);
+    const pArea = document.getElementById(`fp-${f}`);
+    const aArea = document.getElementById(`fa-${f}`);
     if (!pArea) continue;
     const here = G.passengers.filter(p => p.waiting && p.start === f);
-    pArea.innerHTML = here.slice(0, 8).map(p => `
-      <div class="pax-fig pax-${p.type}">
+    pArea.innerHTML = here.slice(0, 7).map(p => `
+      <div class="pax-fig pax-normal">
         <div class="pax-head"></div>
         <div class="pax-body"></div>
-        <div class="pax-dest">${p.dest+1}F</div>
+        <div class="pax-dest">${p.dest + 1}F</div>
       </div>`).join('');
     if (aArea) {
       const up = here.some(p => p.dir === 1);
@@ -611,11 +618,11 @@ function renderAll(now) {
   }
 
   // HUD
-  document.getElementById('s-score').textContent = G.score;
-  document.getElementById('s-del').textContent   = G.delivered;
+  document.getElementById('s-score').textContent  = G.score;
+  document.getElementById('s-floors').textContent = G.floorsCount;
   const s = Math.floor(G.elapsed / 1000);
-  document.getElementById('s-time').textContent  =
-    `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  document.getElementById('s-time').textContent =
+    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
 // ═══════════════════════════════
@@ -634,15 +641,15 @@ function floatScore(text, color) {
   const car = document.getElementById('elev-car');
   const r   = car.getBoundingClientRect();
   const el  = document.createElement('div');
-  el.className  = 'float-score';
-  el.style.cssText = `left:${r.left + r.width/2 - 12}px; top:${r.top - 10}px; color:${color}`;
+  el.className = 'float-score';
+  el.style.cssText = `left:${r.left + r.width / 2 - 14}px;top:${r.top - 8}px;color:${color}`;
   el.textContent = text;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1050);
 }
 
 // ═══════════════════════════════
-//  MAIN LOOP
+//  LOOP
 // ═══════════════════════════════
 function loop(now) {
   if (!G.lastTime) G.lastTime = now;
@@ -652,7 +659,7 @@ function loop(now) {
 
   spawnPax(now);
   updateElev(dt);
-  renderAll(now);
+  renderAll();
 
   requestAnimationFrame(loop);
 }
@@ -660,35 +667,39 @@ function loop(now) {
 // ═══════════════════════════════
 //  EVENTS
 // ═══════════════════════════════
-const btnUp = document.getElementById('btn-up');
-btnUp.addEventListener('mousedown',  () => pressUp(true));
-btnUp.addEventListener('mouseup',    () => pressUp(false));
-btnUp.addEventListener('mouseleave', () => pressUp(false));
-btnUp.addEventListener('touchstart', e => { e.preventDefault(); pressUp(true);  }, { passive:false });
-btnUp.addEventListener('touchend',   e => { e.preventDefault(); pressUp(false); }, { passive:false });
-btnUp.addEventListener('touchcancel',e => { pressUp(false); });
 
-const btnDn = document.getElementById('btn-down');
-btnDn.addEventListener('mousedown',  () => pressDown(true));
-btnDn.addEventListener('mouseup',    () => pressDown(false));
-btnDn.addEventListener('mouseleave', () => pressDown(false));
-btnDn.addEventListener('touchstart', e => { e.preventDefault(); pressDown(true);  }, { passive:false });
-btnDn.addEventListener('touchend',   e => { e.preventDefault(); pressDown(false); }, { passive:false });
-btnDn.addEventListener('touchcancel',e => { pressDown(false); });
+// ▲ button — hold to move up
+const bUp = document.getElementById('btn-up');
+bUp.addEventListener('mousedown',   () => pressUp(true));
+bUp.addEventListener('mouseup',     () => pressUp(false));
+bUp.addEventListener('mouseleave',  () => pressUp(false));
+bUp.addEventListener('touchstart',  e => { e.preventDefault(); pressUp(true);  }, { passive: false });
+bUp.addEventListener('touchend',    e => { e.preventDefault(); pressUp(false); }, { passive: false });
+bUp.addEventListener('touchcancel', () => pressUp(false));
 
-document.getElementById('btn-stop').addEventListener('click', () => {
-  pressUp(false); pressDown(false);
-  if (G.state === 'moving') snapStop();
-  else if (G.state === 'idle') openDoors();
-});
+// ▼ button — hold to move down
+const bDn = document.getElementById('btn-down');
+bDn.addEventListener('mousedown',   () => pressDown(true));
+bDn.addEventListener('mouseup',     () => pressDown(false));
+bDn.addEventListener('mouseleave',  () => pressDown(false));
+bDn.addEventListener('touchstart',  e => { e.preventDefault(); pressDown(true);  }, { passive: false });
+bDn.addEventListener('touchend',    e => { e.preventDefault(); pressDown(false); }, { passive: false });
+bDn.addEventListener('touchcancel', () => pressDown(false));
 
+// Open/Stop button
+document.getElementById('btn-stop').addEventListener('click', () => doOpenDoor());
+document.getElementById('btn-stop').addEventListener('touchend', e => {
+  e.preventDefault(); doOpenDoor();
+}, { passive: false });
+
+// Keyboard
 const keysHeld = new Set();
 document.addEventListener('keydown', ev => {
   if (keysHeld.has(ev.key)) return;
   keysHeld.add(ev.key);
   if (ev.key === 'ArrowUp')   { ev.preventDefault(); pressUp(true); }
   if (ev.key === 'ArrowDown') { ev.preventDefault(); pressDown(true); }
-  if (ev.key === ' ')         { ev.preventDefault(); document.getElementById('btn-stop').click(); }
+  if (ev.key === ' ')         { ev.preventDefault(); doOpenDoor(); }
 });
 document.addEventListener('keyup', ev => {
   keysHeld.delete(ev.key);
@@ -703,7 +714,7 @@ initState();
 buildFloors();
 applyScroll();
 addLog('按住 ▲▼ 移動電梯', 'info');
-addLog('放開即停靠並開門', 'info');
+addLog('按「開門」手動上下乘客', 'info');
 requestAnimationFrame(loop);
 </script>
 </body>
