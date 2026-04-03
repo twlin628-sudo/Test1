@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>電梯帝國</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f14;
+  --bg2: #13161e;
+  --bg3: #1a1e28;
+  --bg4: #222736;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8eaf0;
+  --text2: #8a90a8;
+  --text3: #555c78;
+  --accent: #4fc3f7;
+  --accent2: #0288d1;
+  --gold: #ffc107;
+  --green: #4caf50;
+  --red: #ef5350;
+  --orange: #ff9800;
+  --purple: #9c27b0;
+  --floor-h: 48px;
+  --shaft-w: 52px;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Noto Sans TC', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+/* TOP BAR */
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+}
+#game-title {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.top-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.top-stat-label { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+.top-stat-val { font-size: 14px; font-weight: 700; font-family: var(--mono); }
+#stat-score .top-stat-val { color: var(--accent); }
+#stat-gold .top-stat-val { color: var(--gold); }
+#energy-bar-bg {
+  width: 100px; height: 6px; border-radius: 3px;
+  background: var(--bg4); overflow: hidden;
+}
+#energy-bar { height: 100%; border-radius: 3px; background: var(--green); transition: width 0.4s, background 0.4s; }
+#shop-btn {
+  background: rgba(2,136,209,0.15);
+  border: 1px solid var(--accent2);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+#shop-btn:hover { background: rgba(2,136,209,0.25); }
+#emergency-btn {
+  background: rgba(239,83,80,0.1);
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+#emergency-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+#emergency-cd { font-family: var(--mono); font-size: 10px; color: var(--text3); min-width: 32px; }
+/* MAIN */
+#main { display: flex; flex: 1; overflow: hidden; }
+/* BUILDING */
+#building-col {
+  display: flex; flex-direction: column;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow: hidden; position: relative; flex-shrink: 0;
+}
+#building-scroll { overflow-y: auto; overflow-x: hidden; flex: 1; }
+#building-scroll::-webkit-scrollbar { width: 4px; }
+#building-scroll::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+#building { position: relative; background: var(--bg2); }
+.floor-row {
+  height: 48px; display: flex; align-items: center;
+  border-bottom: 1px solid var(--border);
+  position: relative; cursor: pointer; user-select: none;
+  transition: background 0.1s;
+}
+.floor-row:hover { background: rgba(79,195,247,0.04); }
+.floor-row.flash { animation: floorflash 0.4s; }
+@keyframes floorflash { 0%,100%{background:transparent} 50%{background:rgba(79,195,247,0.15)} }
+.floor-num {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  width: 28px; text-align: right; padding-right: 6px; flex-shrink: 0;
+}
+.floor-pax-area {
+  flex: 1; display: flex; align-items: center; gap: 3px;
+  padding: 0 4px; overflow: hidden; min-width: 120px;
+}
+.floor-shafts { display: flex; align-items: center; flex-shrink: 0; }
+.shaft-slot {
+  width: 52px; height: 48px; border-left: 1px solid var(--border);
+  position: relative; display: flex; align-items: center; justify-content: center;
+}
+.shaft-track {
+  width: 2px; height: 100%; background: var(--border2);
+  position: absolute; left: 50%; transform: translateX(-50%);
+}
+/* ELEVATOR */
+#elev-layer { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; }
+.elev-car {
+  position: absolute; border-radius: 5px; border: 1.5px solid;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; cursor: pointer; pointer-events: all; transition: box-shadow 0.2s; overflow: hidden;
+}
+.elev-car.selected { box-shadow: 0 0 0 2px #fff, 0 0 16px rgba(255,255,255,0.3); }
+.elev-car.door-open { animation: doorpulse 0.8s; }
+@keyframes doorpulse { 0%{opacity:0.7} 30%{opacity:1} 100%{opacity:1} }
+.elev-label { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1px; opacity: 0.9; }
+.elev-count { font-family: var(--mono); font-size: 10px; opacity: 0.8; }
+.elev-dir { font-size: 11px; line-height: 1; }
+/* PAX */
+.pax-person { display: inline-flex; flex-direction: column; align-items: center; gap: 0; position: relative; margin-bottom: 4px; }
+.pax-head { width: 7px; height: 7px; border-radius: 50%; }
+.pax-body { width: 9px; height: 10px; border-radius: 3px 3px 0 0; }
+.pax-wait-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 12px; height: 2px; background: var(--bg4); border-radius: 1px; overflow: hidden; }
+.pax-wait-fill { height: 100%; border-radius: 1px; transition: width 0.5s linear; }
+.pax-fresh .pax-head, .pax-fresh .pax-body { background: var(--green); }
+.pax-fresh .pax-wait-fill { background: var(--green); }
+.pax-mid .pax-head, .pax-mid .pax-body { background: var(--orange); }
+.pax-mid .pax-wait-fill { background: var(--orange); }
+.pax-urgent .pax-head, .pax-urgent .pax-body { background: var(--red); }
+.pax-urgent .pax-wait-fill { background: var(--red); }
+.pax-vip .pax-head, .pax-vip .pax-body { background: var(--gold); }
+.pax-vip .pax-wait-fill { background: var(--gold); }
+.pax-courier .pax-head, .pax-courier .pax-body { background: var(--orange); }
+.pax-courier .pax-wait-fill { background: var(--orange); }
+.pax-dest-badge {
+  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+  background: var(--bg4); border: 1px solid var(--border2); border-radius: 3px;
+  font-family: var(--mono); font-size: 8px; padding: 0 2px; white-space: nowrap; pointer-events: none;
+}
+/* RIGHT PANEL */
+#right-panel {
+  width: 210px; flex-shrink: 0; background: var(--bg2);
+  border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+}
+.panel-section { border-bottom: 1px solid var(--border); padding: 9px 11px; }
+.panel-title { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 7px; }
+.elev-status-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 9px; margin-bottom: 5px; cursor: pointer; transition: border-color 0.2s;
+}
+.elev-status-card:hover { border-color: var(--border2); }
+.elev-status-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+.elev-status-name { font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.elev-status-floor { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.elev-status-state { font-size: 10px; color: var(--text2); margin-bottom: 3px; }
+.elev-queue { display: flex; gap: 3px; flex-wrap: wrap; }
+.queue-badge {
+  font-family: var(--mono); font-size: 9px; padding: 1px 5px;
+  border-radius: 3px; background: var(--bg4); border: 1px solid var(--border2); color: var(--text2);
+}
+.queue-badge.ad { background: rgba(79,195,247,0.15); border-color: var(--accent2); color: var(--accent); }
+.mode-toggle {
+  font-size: 9px; font-family: var(--mono); padding: 2px 5px; border-radius: 3px;
+  border: 1px solid var(--border2); background: var(--bg4); color: var(--text2); cursor: pointer;
+}
+.mode-toggle.manual { border-color: var(--accent2); color: var(--accent); background: rgba(2,136,209,0.15); }
+#log-area { flex: 1; overflow-y: auto; padding: 8px 11px; }
+#log-area::-webkit-scrollbar { width: 3px; }
+#log-area::-webkit-scrollbar-thumb { background: var(--bg4); }
+.log-entry { font-size: 11px; color: var(--text2); font-family: var(--mono); padding: 2px 0; border-bottom: 1px solid var(--border); line-height: 1.4; }
+.log-entry.good { color: var(--green); }
+.log-entry.bad { color: var(--red); }
+.log-entry.info { color: var(--accent); }
+.log-entry.gold { color: var(--gold); }
+/* TOAST */
+#toast-area { position: fixed; top: 54px; right: 220px; z-index: 100; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.toast {
+  background: var(--bg3); border: 1px solid var(--gold); border-radius: 8px;
+  padding: 7px 13px; font-size: 12px; color: var(--gold); font-family: var(--mono);
+  animation: toastIn 0.3s ease, toastOut 0.4s ease 2.6s forwards;
+  box-shadow: 0 4px 16px rgba(255,193,7,0.15);
+}
+@keyframes toastIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
+@keyframes toastOut { to{opacity:0;transform:translateY(-8px)} }
+/* FLOAT SCORE */
+.float-score {
+  position: fixed; font-family: var(--mono); font-size: 13px; font-weight: 700;
+  pointer-events: none; z-index: 200; animation: floatUp 1s ease forwards;
+}
+@keyframes floatUp { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-40px)} }
+/* POWER WARNING */
+#power-warning {
+  display: none; position: fixed; top: 54px; left: 50%; transform: translateX(-50%);
+  background: rgba(239,83,80,0.15); border: 1px solid var(--red); color: var(--red);
+  font-family: var(--mono); font-size: 12px; padding: 6px 16px; border-radius: 6px;
+  z-index: 100; animation: blink 1s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+/* SHOP MODAL */
+#shop-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 300; align-items: center; justify-content: center;
+}
+#shop-overlay.open { display: flex; }
+#shop-modal {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 12px;
+  width: 520px; max-height: 80vh; overflow-y: auto; padding: 18px;
+}
+#shop-modal::-webkit-scrollbar { width: 4px; }
+#shop-modal::-webkit-scrollbar-thumb { background: var(--bg4); }
+#shop-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+#shop-title { font-family: var(--mono); font-size: 15px; color: var(--gold); letter-spacing: 2px; }
+#shop-gold-display { font-family: var(--mono); font-size: 13px; color: var(--gold); }
+#shop-close {
+  background: none; border: 1px solid var(--border2); color: var(--text2);
+  cursor: pointer; width: 26px; height: 26px; border-radius: 5px; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+#shop-close:hover { border-color: var(--red); color: var(--red); }
+.shop-section-title {
+  font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 2px;
+  text-transform: uppercase; margin: 10px 0 7px; padding-bottom: 4px; border-bottom: 1px solid var(--border);
+}
+.shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.shop-item {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 11px; display: flex; flex-direction: column; gap: 4px;
+}
+.shop-item.maxed { opacity: 0.4; }
+.shop-item-name { font-size: 12px; font-weight: 700; }
+.shop-item-desc { font-size: 11px; color: var(--text2); line-height: 1.4; }
+.shop-buy-btn {
+  margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 5px 8px; border-radius: 5px; border: 1px solid var(--gold);
+  background: rgba(255,193,7,0.1); color: var(--gold); font-family: var(--mono);
+  font-size: 11px; cursor: pointer; transition: background 0.2s;
+}
+.shop-buy-btn:hover:not(:disabled) { background: rgba(255,193,7,0.2); }
+.shop-buy-btn:disabled { border-color: var(--text3); color: var(--text3); background: none; cursor: not-allowed; }
+/* GAME OVER */
+#gameover-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85); z-index: 400; align-items: center; justify-content: center;
+}
+#gameover-overlay.open { display: flex; }
+#gameover-box {
+  background: var(--bg2); border: 1px solid var(--red); border-radius: 14px;
+  padding: 30px 40px; text-align: center; min-width: 300px;
+  box-shadow: 0 0 40px rgba(239,83,80,0.2);
+}
+#gameover-title { font-family: var(--mono); font-size: 22px; color: var(--red); letter-spacing: 3px; margin-bottom: 6px; }
+#gameover-stats { font-family: var(--mono); font-size: 13px; color: var(--text2); line-height: 2; margin: 14px 0; }
+#gameover-stats span { color: var(--text); font-weight: 700; }
+#restart-btn {
+  background: var(--red); border: none; color: #fff; font-family: var(--mono);
+  font-size: 13px; padding: 10px 28px; border-radius: 8px; cursor: pointer; letter-spacing: 1px;
+}
+#restart-btn:hover { opacity: 0.85; }
+.ach-badge {
+  display: inline-block; background: rgba(156,39,176,0.15); border: 1px solid var(--purple);
+  border-radius: 4px; font-size: 10px; font-family: var(--mono); color: #ce93d8; padding: 1px 6px; margin: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="game-title">ELEVATOR EMPIRE</div>
+  <div class="top-stat" id="stat-score">
+    <span class="top-stat-label">SCORE</span>
+    <span class="top-stat-val" id="score-val">0</span>
+  </div>
+  <div class="top-stat" id="stat-gold">
+    <span class="top-stat-label">GOLD</span>
+    <span class="top-stat-val" id="gold-val">0</span>
+  </div>
+  <div class="top-stat">
+    <span class="top-stat-label">POWER&nbsp;<span id="energy-num" style="color:var(--text2)">100</span></span>
+    <div id="energy-bar-bg"><div id="energy-bar" style="width:100%"></div></div>
+  </div>
+  <div class="top-stat">
+    <span class="top-stat-label">TIME</span>
+    <span class="top-stat-val" id="timer-val" style="font-size:13px">0:00</span>
+  </div>
+  <div class="top-stat">
+    <span class="top-stat-label" style="color:var(--red)">COMPLAINTS</span>
+    <span class="top-stat-val" id="complaint-val" style="color:var(--red);font-size:13px">0/10</span>
+  </div>
+  <button id="emergency-btn" disabled title="消耗20電力讓選中電梯直達目標（需先解鎖）">⚡ EMERGENCY</button>
+  <span id="emergency-cd"></span>
+  <button id="shop-btn">🏪 SHOP</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="building-col">
+    <div id="building-scroll">
+      <div id="building">
+        <div id="elev-layer"></div>
+      </div>
+    </div>
+  </div>
+  <div id="right-panel">
+    <div class="panel-section">
+      <div class="panel-title">ELEVATORS</div>
+      <div id="elev-status-list"></div>
+    </div>
+    <div class="panel-section" style="padding:8px 11px;">
+      <div class="panel-title">ACHIEVEMENTS</div>
+      <div id="ach-area" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+    </div>
+    <div class="panel-section" style="padding:8px 11px;border-bottom:none;">
+      <div class="panel-title">EVENT LOG</div>
+    </div>
+    <div id="log-area"></div>
+  </div>
+</div>
+
+<div id="toast-area"></div>
+<div id="power-warning">⚡ 電力危險！請減少電梯移動！</div>
+
+<!-- Shop Modal -->
+<div id="shop-overlay">
+  <div id="shop-modal">
+    <div id="shop-header">
+      <div id="shop-title">SHOP</div>
+      <div id="shop-gold-display">💰 <span id="shop-gold-num">0</span></div>
+      <button id="shop-close">✕</button>
+    </div>
+    <div id="shop-content"></div>
+  </div>
+</div>
+
+<!-- Game Over -->
+<div id="gameover-overlay">
+  <div id="gameover-box">
+    <div id="gameover-title">GAME OVER</div>
+    <div style="font-size:12px;color:var(--text2);font-family:var(--mono)">電力耗盡，大廈停擺</div>
+    <div id="gameover-stats"></div>
+    <button id="restart-btn">RESTART</button>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──
+const FLOOR_H = 48;
+const SHAFT_W = 52;
+const ELEV_W = 40;
+const ELEV_H = 44;
+const ENERGY_MAX = 100;
+const ENERGY_REGEN_BASE = 0.014;
+const ENERGY_PER_FLOOR = 0.75;
+const WAIT_NORMAL = 20000;
+const WAIT_VIP = 12000;
+const WAIT_COURIER = 9000;
+const BASE_SPEED_MS = 420;
+const DOOR_MS = 900;
+const COMPLAINT_MAX = 10;
+const EMERGENCY_CD_MS = 600000;
+const ELEV_COLORS = ['#4fc3f7','#4caf50','#ff9800','#ce93d8'];
+const ELEV_NAMES = ['A','B','C','D'];
+
+// ── STATE ──
+let G = {};
+function initState() {
+  G = {
+    score:0, gold:0, energy:ENERGY_MAX,
+    complaints:0, penaltyActive:false, penaltyEnd:0,
+    gameOver:false, gameOverShown:false,
+    powerWarning:false, powerWarningEnd:0,
+    elapsed:0, lastTime:null,
+    delivered:0,
+    passengers:[], nextPaxId:0,
+    elevators:[], selectedElev:null,
+    emergencyCooldown:0,
+    numElevators:1, numFloors:8,
+    regenLevel:0, patienceBonus:0,
+    quickViewUnlocked:false, emergencyUnlocked:false,
+    achievements:new Set(),
+    lastSpawn:0, spawnInterval:2800,
+    difficultyTimer:0,
+    scoreMult:1, chainCount:0, chainTimer:0,
+  };
+}
+
+function hexRgba(hex,a){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ── BUILD FLOORS ──
+function buildFloors() {
+  const bld = document.getElementById('building');
+  const layer = document.getElementById('elev-layer');
+  bld.innerHTML = '';
+  bld.appendChild(layer);
+  const totalW = 28 + 130 + G.numElevators * SHAFT_W;
+  bld.style.width = totalW + 'px';
+  document.getElementById('building-col').style.width = totalW + 'px';
+
+  for (let i = G.numFloors-1; i >= 0; i--) {
+    const row = document.createElement('div');
+    row.className = 'floor-row';
+    row.dataset.floor = i;
+    row.id = `floor-${i}`;
+
+    const num = document.createElement('div');
+    num.className = 'floor-num';
+    num.textContent = i+1;
+
+    const paxArea = document.createElement('div');
+    paxArea.className = 'floor-pax-area';
+    paxArea.id = `pax-${i}`;
+
+    const shafts = document.createElement('div');
+    shafts.className = 'floor-shafts';
+    for (let s=0;s<G.numElevators;s++) {
+      const slot = document.createElement('div');
+      slot.className='shaft-slot';
+      const track = document.createElement('div');
+      track.className='shaft-track';
+      slot.appendChild(track);
+      shafts.appendChild(slot);
+    }
+    row.appendChild(num);
+    row.appendChild(paxArea);
+    row.appendChild(shafts);
+    row.addEventListener('click', ()=>onFloorClick(i));
+    bld.appendChild(row);
+  }
+}
+
+// ── BUILD ELEVATORS ──
+function buildElevators() {
+  const layer = document.getElementById('elev-layer');
+  layer.querySelectorAll('.elev-car').forEach(e=>e.remove());
+  G.elevators = [];
+  const starts = [0, Math.floor(G.numFloors/2), 1, Math.floor(G.numFloors*3/4)];
+  for (let i=0;i<G.numElevators;i++) {
+    const e = {
+      id:i, color:ELEV_COLORS[i],
+      floor:starts[i]||0, pixelY:(starts[i]||0)*FLOOR_H,
+      target:starts[i]||0, queue:[], dir:0,
+      state:'idle', doorTimer:0, pax:[],
+      capacity:4, speedMult:1, energyMult:1, mode:'auto',
+      speedLevel:0, capacityLevel:0, engineLevel:0,
+    };
+    G.elevators.push(e);
+    const car = document.createElement('div');
+    car.className='elev-car'; car.id=`elev-car-${i}`;
+    car.style.borderColor=e.color;
+    car.style.background=hexRgba(e.color,0.12);
+    car.style.color=e.color;
+    car.style.width=ELEV_W+'px'; car.style.height=ELEV_H+'px';
+    const sx = 28+130+i*SHAFT_W+(SHAFT_W-ELEV_W)/2;
+    car.style.left=sx+'px';
+    car.innerHTML=`<div class="elev-label">${ELEV_NAMES[i]}</div><div class="elev-count" id="ec-${i}">0/${e.capacity}</div><div class="elev-dir" id="ed-${i}">─</div>`;
+    car.addEventListener('click',ev=>{ev.stopPropagation();selectElev(i);});
+    layer.appendChild(car);
+    e.el=car;
+    posElev(e);
+  }
+}
+
+function posElev(e) {
+  const fromTop = G.numFloors*FLOOR_H - e.pixelY - FLOOR_H;
+  e.el.style.top = (fromTop+2)+'px';
+}
+
+// ── CONTROLS ──
+function selectElev(idx) {
+  G.selectedElev=idx;
+  G.elevators.forEach((e,i)=>e.el.classList.toggle('selected',i===idx));
+}
+
+function onFloorClick(floor) {
+  if (G.selectedElev===null) {
+    let best=0,bd=Infinity;
+    G.elevators.forEach((e,i)=>{const d=Math.abs(e.floor-floor);if(d<bd){bd=d;best=i;}});
+    G.selectedElev=best;
+    selectElev(best);
+  }
+  const e=G.elevators[G.selectedElev];
+  if (e.mode==='manual') {
+    if (!e.queue.includes(floor)) {
+      e.queue.push(floor);
+      if (e.state==='idle') setNext(e);
+    }
+  } else {
+    e.target=floor;
+    if (e.state==='idle') {
+      e.dir=floor>e.floor?1:floor<e.floor?-1:0;
+      if(e.dir!==0) e.state='moving';
+      else openDoors(e);
+    }
+  }
+  flashFloor(floor);
+}
+
+function flashFloor(f) {
+  const row=document.getElementById(`floor-${f}`);
+  if(row){row.classList.add('flash');setTimeout(()=>row.classList.remove('flash'),400);}
+}
+
+function setNext(e) {
+  if (e.queue.length>0) {
+    e.target=e.queue.shift();
+    e.dir=e.target>e.floor?1:e.target<e.floor?-1:0;
+    if(e.floor===e.target) openDoors(e);
+    else e.state='moving';
+  } else {
+    e.state='idle'; e.dir=0;
+  }
+}
+
+// ── SPAWN ──
+function spawnPax(now) {
+  if (now-G.lastSpawn < G.spawnInterval) return;
+  G.lastSpawn=now;
+  const f=G.numFloors;
+  let type='normal';
+  const r=Math.random();
+  if(r<0.12) type='vip';
+  else if(r<0.26) type='courier';
+  let start=Math.floor(Math.random()*f);
+  let end; do{end=Math.floor(Math.random()*f);}while(end===start);
+  if(type==='courier'&&start%2!==0) start=(start+1)%f;
+  const base=type==='vip'?WAIT_VIP:type==='courier'?WAIT_COURIER:WAIT_NORMAL;
+  const waitMax=base*(1+G.patienceBonus*0.3);
+  G.passengers.push({id:G.nextPaxId++,type,start,end,dir:end>start?1:-1,waiting:true,born:now,waitMax});
+  if(type==='vip') addLog(`⭐ VIP 出現 ${start+1}F`,'gold');
+  else if(type==='courier') addLog(`📦 快遞員 ${start+1}F`,'info');
+}
+
+// ── ELEVATOR UPDATE ──
+function updateElev(e,dt,now) {
+  if(e.state==='door'){
+    e.doorTimer-=dt;
+    if(e.doorTimer<=0){
+      e.el.classList.remove('door-open');
+      if(e.mode==='manual') setNext(e);
+      else {
+        if(e.floor!==e.target){e.dir=e.target>e.floor?1:-1;e.state='moving';}
+        else{e.state='idle';e.dir=0;}
+      }
+    }
+    return;
+  }
+  if(e.state==='idle'){
+    if(e.mode==='auto') autoAssign(e);
+    return;
+  }
+  if(e.state==='moving'){
+    const spMs=BASE_SPEED_MS/e.speedMult;
+    const px=e.dir*(FLOOR_H/spMs)*dt;
+    e.pixelY+=px;
+    const nearF=Math.round(e.pixelY/FLOOR_H);
+    if(Math.abs(e.pixelY-nearF*FLOOR_H)<1.5 && nearF!==e.floor){
+      e.floor=nearF; e.pixelY=nearF*FLOOR_H;
+      const ratio=e.pax.length/e.capacity;
+      const costM=ratio>=0.8?0.8:1.0;
+      G.energy-=ENERGY_PER_FLOOR*e.energyMult*costM;
+    }
+    const arrived=(e.dir===1&&e.pixelY>=e.target*FLOOR_H)||(e.dir===-1&&e.pixelY<=e.target*FLOOR_H);
+    const stop=shouldStop(e);
+    if(arrived||stop){
+      if(arrived){e.pixelY=e.target*FLOOR_H;e.floor=e.target;}
+      openDoors(e);
+    }
+  }
+}
+
+function shouldStop(e){
+  const f=e.floor;
+  if(e.pax.some(p=>p.end===f)) return true;
+  if(G.passengers.some(p=>p.waiting&&p.start===f&&(e.dir===0||p.dir===e.dir)&&e.pax.length<e.capacity)) return true;
+  return false;
+}
+
+function openDoors(e){
+  e.state='door'; e.doorTimer=DOOR_MS;
+  e.el.classList.add('door-open');
+  handlePax(e);
+}
+
+function handlePax(e){
+  const f=e.floor;
+  let batch=0;
+  e.pax=e.pax.filter(p=>{
+    if(p.end===f){deliver(p,e,++batch);return false;}
+    return true;
+  });
+  G.passengers.forEach(p=>{
+    if(p.waiting&&p.start===f&&e.pax.length<e.capacity&&(e.dir===0||p.dir===e.dir)){
+      p.waiting=false; e.pax.push(p);
+    }
+  });
+}
+
+function deliver(p,e,batchN){
+  const base=p.type==='vip'?30:p.type==='courier'?20:10;
+  const goldB=p.type==='vip'?8:p.type==='courier'?5:2;
+  G.chainCount++; G.chainTimer=3000;
+  const chain=Math.min(G.chainCount,5);
+  let pts=Math.round(base*G.scoreMult*chain);
+  if(batchN>=3){pts=Math.round(pts*1.5);}
+  G.score+=pts; G.gold+=goldB; G.delivered++;
+  const label=p.type==='vip'?'⭐VIP':p.type==='courier'?'📦快遞':'乘客';
+  addLog(`${label} ${p.start+1}F→${p.end+1}F +${pts}分`,p.type==='vip'?'gold':'good');
+  floatScore(`+${pts}`,p.type==='vip'?'#ffc107':'#4caf50',e);
+  if(batchN>=3){addLog(`🚀 滿載獎勵！`,'good');showToast('🚀 滿載！x1.5加成');}
+  checkAch();
+}
+
+function autoAssign(e){
+  let best=null,bd=Infinity;
+  G.passengers.forEach(p=>{
+    if(!p.waiting) return;
+    const d=Math.abs(e.floor-p.start);
+    if(d<bd){bd=d;best=p;}
+  });
+  if(best){
+    e.target=best.start;
+    e.dir=best.start>e.floor?1:best.start<e.floor?-1:0;
+    if(e.dir!==0) e.state='moving';
+    else openDoors(e);
+  }
+}
+
+// ── PAX TIMEOUT ──
+function updatePax(now){
+  G.passengers=G.passengers.filter(p=>{
+    if(!p.waiting) return true;
+    if(now-p.born>=p.waitMax){
+      G.complaints++;
+      const pen=p.type==='vip'?15:5;
+      G.score=Math.max(0,G.score-pen);
+      addLog(`${p.type==='vip'?'⭐VIP':p.type==='courier'?'📦快遞':'乘客'} ${p.start+1}F 離開 -${pen}分`,'bad');
+      floatScore(`-${pen}`,'#ef5350',null,p.start);
+      if(G.complaints>=COMPLAINT_MAX&&!G.penaltyActive){
+        G.penaltyActive=true; G.penaltyEnd=now+30000;
+        showToast('⚠️ 差評懲罰！回充減半30秒');
+        addLog('差評懲罰啟動！','bad');
+      }
+      return false;
+    }
+    return true;
+  });
+}
+
+// ── ENERGY ──
+function updateEnergy(dt,now){
+  const regenM=[1,1.5,2.25];
+  let regen=ENERGY_REGEN_BASE*regenM[G.regenLevel];
+  if(G.penaltyActive){if(now>G.penaltyEnd)G.penaltyActive=false;else regen*=0.5;}
+  G.energy=Math.min(ENERGY_MAX,G.energy+regen*(dt/16.67));
+  if(G.energy>=80) G.scoreMult=Math.min(2,G.scoreMult+0.001*(dt/16.67));
+  else G.scoreMult=Math.max(1,G.scoreMult-0.003*(dt/16.67));
+  if(G.energy<=20&&!G.powerWarning){
+    G.powerWarning=true; G.powerWarningEnd=now+30000;
+    document.getElementById('power-warning').style.display='block';
+    addLog('⚡ 電力危險！','bad');
+  }
+  if(G.powerWarning&&G.energy>20){
+    G.powerWarning=false;
+    document.getElementById('power-warning').style.display='none';
+  }
+  if(G.powerWarning&&now>G.powerWarningEnd) triggerGameOver();
+  if(G.energy<=0) triggerGameOver();
+}
+
+function updateDiff(dt){
+  G.difficultyTimer+=dt;
+  if(G.difficultyTimer>=180000){G.difficultyTimer=0;G.spawnInterval=Math.max(1100,G.spawnInterval*0.94);}
+}
+
+function updateChain(dt){
+  if(G.chainTimer>0){G.chainTimer-=dt;if(G.chainTimer<=0)G.chainCount=0;}
+}
+
+// ── ACHIEVEMENTS ──
+const ACH=[
+  {id:'d50',   label:'初級調度員', desc:'送達50人',   check:()=>G.delivered>=50,    reward:()=>{G.quickViewUnlocked=true;addLog('解鎖：快速查看','info');}},
+  {id:'d200',  label:'資深主任',   desc:'送達200人',  check:()=>G.delivered>=200,   reward:()=>{G.emergencyUnlocked=true;document.getElementById('emergency-btn').disabled=false;addLog('解鎖：緊急直達','info');}},
+  {id:'en80',  label:'節能大師',   desc:'高電力撐5分鐘',check:()=>G.elapsed>=300000&&G.energy>=80,reward:()=>{showToast('🏆 節能大師！');}},
+  {id:'s1k',   label:'千分俱樂部', desc:'1000分',      check:()=>G.score>=1000,     reward:()=>{}},
+  {id:'s5k',   label:'電梯大亨',   desc:'5000分',      check:()=>G.score>=5000,     reward:()=>{showToast('👑 電梯大亨！');}},
+  {id:'s20k',  label:'傳說調度員', desc:'20000分',     check:()=>G.score>=20000,    reward:()=>{showToast('🌟 傳說調度員！');}},
+];
+function checkAch(){
+  ACH.forEach(a=>{
+    if(!G.achievements.has(a.id)&&a.check()){
+      G.achievements.add(a.id); a.reward();
+      showToast(`🏆 ${a.label}`);
+      addLog(`成就：${a.label}`,'info');
+      renderAch();
+    }
+  });
+}
+function renderAch(){
+  const area=document.getElementById('ach-area');
+  area.innerHTML='';
+  G.achievements.forEach(id=>{
+    const a=ACH.find(x=>x.id===id); if(!a) return;
+    const b=document.createElement('span');
+    b.className='ach-badge'; b.textContent=a.label; b.title=a.desc;
+    area.appendChild(b);
+  });
+}
+
+// ── EMERGENCY ──
+document.getElementById('emergency-btn').addEventListener('click',()=>{
+  if(!G.emergencyUnlocked||G.emergencyCooldown>0) return;
+  if(G.selectedElev===null){addLog('請先選擇電梯','bad');return;}
+  if(G.energy<20){addLog('電力不足（需20）','bad');return;}
+  G.energy-=20; G.emergencyCooldown=EMERGENCY_CD_MS;
+  const e=G.elevators[G.selectedElev];
+  e.queue=[];
+  if(e.state==='idle'){e.dir=e.target>e.floor?1:-1;if(e.dir!==0)e.state='moving';}
+  showToast('⚡ 緊急直達！');
+  addLog('緊急直達 -20電力','bad');
+});
+
+// ── RENDER PAX ──
+function renderPax(now){
+  for(let f=0;f<G.numFloors;f++){
+    const area=document.getElementById(`pax-${f}`);
+    if(!area) continue;
+    area.innerHTML='';
+    const waiting=G.passengers.filter(p=>p.waiting&&p.start===f);
+    waiting.slice(0,9).forEach(p=>{
+      const ratio=(now-p.born)/p.waitMax;
+      const urg=ratio<0.4?'fresh':ratio<0.75?'mid':'urgent';
+      const cls=p.type==='vip'?'pax-vip':p.type==='courier'?'pax-courier':`pax-${urg}`;
+      const el=document.createElement('div');
+      el.className=`pax-person ${cls}`;
+      el.title=`→${p.end+1}F ${p.type==='vip'?'[VIP]':p.type==='courier'?'[快遞]':''}`;
+      if(G.quickViewUnlocked){
+        const b=document.createElement('div');b.className='pax-dest-badge';b.textContent=p.end+1;el.appendChild(b);
+      }
+      const h=document.createElement('div');h.className='pax-head';el.appendChild(h);
+      const bd=document.createElement('div');bd.className='pax-body';el.appendChild(bd);
+      const wb=document.createElement('div');wb.className='pax-wait-bar';
+      const wf=document.createElement('div');wf.className='pax-wait-fill';wf.style.width=Math.max(0,(1-ratio)*100)+'%';
+      wb.appendChild(wf);el.appendChild(wb);
+      area.appendChild(el);
+    });
+    if(waiting.length>9){
+      const m=document.createElement('span');
+      m.style.cssText='font-size:9px;color:var(--text3);font-family:var(--mono)';
+      m.textContent=`+${waiting.length-9}`;
+      area.appendChild(m);
+    }
+  }
+}
+
+// ── RENDER ELEVS ──
+function renderElevs(){
+  const totalH=G.numFloors*FLOOR_H;
+  G.elevators.forEach(e=>{
+    e.el.style.top=(totalH-e.pixelY-FLOOR_H+2)+'px';
+    document.getElementById(`ec-${e.id}`).textContent=`${e.pax.length}/${e.capacity}`;
+    document.getElementById(`ed-${e.id}`).textContent=e.dir===1?'▲':e.dir===-1?'▼':'─';
+    if(e.pax.length>=e.capacity) e.el.style.boxShadow=`0 0 8px ${hexRgba(e.color,0.6)}`;
+    else if(!e.el.classList.contains('selected')) e.el.style.boxShadow='none';
+  });
+}
+
+// ── RIGHT PANEL ──
+function updatePanel(){
+  const list=document.getElementById('elev-status-list');
+  list.innerHTML='';
+  G.elevators.forEach((e,i)=>{
+    const card=document.createElement('div');
+    card.className='elev-status-card'+(i===G.selectedElev?' active':'');
+    if(i===G.selectedElev) card.style.borderColor=e.color;
+    card.addEventListener('click',()=>selectElev(i));
+    const st=e.state==='door'?'開門中':e.state==='moving'?(e.dir===1?'↑上行':'↓下行'):'待機';
+    const qb=e.queue.slice(0,3).map((f,qi)=>`<span class="queue-badge${qi===0?' ad':''}">${f+1}F</span>`).join('');
+    const db=e.pax.slice(0,4).map(p=>`<span class="queue-badge ad">→${p.end+1}</span>`).join('');
+    card.innerHTML=`
+      <div class="elev-status-top">
+        <span class="elev-status-name" style="color:${e.color}">${ELEV_NAMES[i]}梯</span>
+        <span class="elev-status-floor">${e.floor+1}F</span>
+        <button class="mode-toggle${e.mode==='manual'?' manual':''}" onclick="toggleMode(${i});event.stopPropagation();">${e.mode==='manual'?'手動':'自動'}</button>
+      </div>
+      <div class="elev-status-state">${st} | ${e.pax.length}/${e.capacity}人 | 速Lv${e.speedLevel+1}</div>
+      <div class="elev-queue">${e.mode==='manual'?(qb||'<span style="font-size:10px;color:var(--text3)">無指令</span>'):db||'<span style="font-size:10px;color:var(--text3)">空閒</span>'}</div>
+    `;
+    list.appendChild(card);
+  });
+}
+function toggleMode(idx){
+  const e=G.elevators[idx];
+  e.mode=e.mode==='auto'?'manual':'auto';
+  if(e.mode==='manual') e.queue=[];
+  addLog(`${ELEV_NAMES[idx]}梯→${e.mode==='manual'?'手動':'自動'}模式`,'info');
+  updatePanel();
+}
+window.toggleMode=toggleMode;
+
+// ── UI ──
+function updateUI(){
+  document.getElementById('score-val').textContent=G.score.toLocaleString();
+  document.getElementById('gold-val').textContent=G.gold;
+  document.getElementById('energy-num').textContent=Math.ceil(G.energy);
+  const pct=(G.energy/ENERGY_MAX)*100;
+  const bar=document.getElementById('energy-bar');
+  bar.style.width=Math.max(0,pct)+'%';
+  bar.style.background=pct>50?'#4caf50':pct>25?'#ff9800':'#ef5350';
+  document.getElementById('complaint-val').textContent=`${G.complaints}/${COMPLAINT_MAX}`;
+  const s=Math.floor(G.elapsed/1000),m=Math.floor(s/60);
+  document.getElementById('timer-val').textContent=`${m}:${(s%60).toString().padStart(2,'0')}`;
+  if(G.emergencyUnlocked){
+    const btn=document.getElementById('emergency-btn');
+    const cd=document.getElementById('emergency-cd');
+    if(G.emergencyCooldown>0){
+      btn.disabled=true;
+      const sc=Math.ceil(G.emergencyCooldown/1000);
+      cd.textContent=`${Math.floor(sc/60)}:${(sc%60).toString().padStart(2,'0')}`;
+    } else {btn.disabled=false;cd.textContent='';}
+  }
+}
+
+// ── LOG ──
+function addLog(msg,type=''){
+  const a=document.getElementById('log-area');
+  const d=document.createElement('div');
+  d.className='log-entry'+(type?' '+type:'');
+  d.textContent=msg;
+  a.insertBefore(d,a.firstChild);
+  if(a.children.length>50) a.removeChild(a.lastChild);
+}
+
+// ── TOAST ──
+function showToast(msg){
+  const a=document.getElementById('toast-area');
+  const t=document.createElement('div');
+  t.className='toast';t.textContent=msg;
+  a.appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+
+// ── FLOAT SCORE ──
+function floatScore(text,color,elev,floor){
+  let x,y;
+  if(elev){const r=elev.el.getBoundingClientRect();x=r.left+r.width/2;y=r.top;}
+  else if(floor!==undefined){const row=document.getElementById(`floor-${floor}`);if(!row)return;const r=row.getBoundingClientRect();x=r.left+80;y=r.top;}
+  else return;
+  const el=document.createElement('div');
+  el.className='float-score';
+  el.style.left=x+'px';el.style.top=y+'px';el.style.color=color;
+  el.textContent=text;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1000);
+}
+
+// ── SHOP ──
+document.getElementById('shop-btn').addEventListener('click',()=>{renderShop();document.getElementById('shop-overlay').classList.add('open');});
+document.getElementById('shop-close').addEventListener('click',()=>document.getElementById('shop-overlay').classList.remove('open'));
+document.getElementById('shop-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('shop-overlay'))document.getElementById('shop-overlay').classList.remove('open');});
+
+function renderShop(){
+  document.getElementById('shop-gold-num').textContent=G.gold;
+  const c=document.getElementById('shop-content');c.innerHTML='';
+
+  // Elevator Unlock
+  addSec(c,'電梯擴充');
+  const eg=mkGrid();c.appendChild(eg);
+  [{i:1,cost:150},{i:2,cost:400},{i:3,cost:900}].forEach(({i,cost})=>{
+    const owned=G.numElevators>i;
+    eg.appendChild(mkItem(`解鎖 ${ELEV_NAMES[i]} 號梯`,`第${i+1}台電梯`,cost,owned,!owned&&G.gold>=cost&&G.numElevators===i,()=>{
+      if(G.gold>=cost&&G.numElevators===i){G.gold-=cost;G.numElevators++;addNewElev();showToast(`🛗 ${ELEV_NAMES[i]}號梯啟用！`);addLog(`解鎖${ELEV_NAMES[i]}號梯`,'info');renderShop();}
+    }));
+  });
+
+  // Elev Upgrades
+  addSec(c,'電梯升級（選中電梯）');
+  if(G.selectedElev!==null){
+    const e=G.elevators[G.selectedElev];
+    const ug=mkGrid();c.appendChild(ug);
+    const sCosts=[80,180,350];
+    const cCosts=[100,250];
+    ug.appendChild(mkItem('速度升級',`+25%速度 Lv${e.speedLevel}/3`,sCosts[e.speedLevel],e.speedLevel>=3,e.speedLevel<3&&G.gold>=(sCosts[e.speedLevel]||0),()=>{
+      const cc=sCosts[e.speedLevel];if(G.gold>=cc&&e.speedLevel<3){G.gold-=cc;e.speedLevel++;e.speedMult=1+e.speedLevel*0.25;addLog(`${ELEV_NAMES[G.selectedElev]}梯速度Lv${e.speedLevel}`,'info');renderShop();}
+    }));
+    ug.appendChild(mkItem('容量升級',`容量+2人（現${e.capacity}人）Lv${e.capacityLevel}/2`,cCosts[e.capacityLevel],e.capacityLevel>=2,e.capacityLevel<2&&G.gold>=(cCosts[e.capacityLevel]||0),()=>{
+      const cc=cCosts[e.capacityLevel];if(G.gold>=cc&&e.capacityLevel<2){G.gold-=cc;e.capacityLevel++;e.capacity+=2;addLog(`${ELEV_NAMES[G.selectedElev]}梯容量${e.capacity}人`,'info');renderShop();}
+    }));
+    ug.appendChild(mkItem('節能引擎',`耗電-15%（${e.engineLevel?'已安裝':'未安裝'}）`,200,e.engineLevel>=1,e.engineLevel<1&&G.gold>=200,()=>{
+      if(G.gold>=200&&e.engineLevel<1){G.gold-=200;e.engineLevel=1;e.energyMult=0.85;addLog(`${ELEV_NAMES[G.selectedElev]}梯節能引擎`,'info');renderShop();}
+    }));
+  } else {
+    const h=document.createElement('div');h.style.cssText='font-size:11px;color:var(--text3);padding:8px;font-family:var(--mono)';h.textContent='請先點擊電梯選中';c.appendChild(h);
+  }
+
+  // Building
+  addSec(c,'建築升級');
+  const bg=mkGrid();c.appendChild(bg);
+  const rCosts=[120,220];
+  const fIdx=Math.floor((G.numFloors-8)/2);
+  const fCosts=[200,350];
+  bg.appendChild(mkItem('供電強化',`回充+50% Lv${G.regenLevel}/2`,rCosts[G.regenLevel],G.regenLevel>=2,G.regenLevel<2&&G.gold>=(rCosts[G.regenLevel]||0),()=>{
+    const cc=rCosts[G.regenLevel];if(G.gold>=cc&&G.regenLevel<2){G.gold-=cc;G.regenLevel++;addLog(`供電Lv${G.regenLevel}`,'info');renderShop();}
+  }));
+  bg.appendChild(mkItem('樓層擴展',`+2層（現${G.numFloors}層/上限20層）`,fCosts[fIdx]||999,G.numFloors>=20,G.numFloors<20&&G.gold>=(fCosts[fIdx]||999),()=>{
+    const cc=fCosts[fIdx];if(G.gold>=cc&&G.numFloors<20){G.gold-=cc;G.numFloors+=2;rebuildAll();addLog(`樓層→${G.numFloors}層`,'info');renderShop();}
+  }));
+  bg.appendChild(mkItem('候客室',`乘客耐心+30%（${G.patienceBonus?'已安裝':'未安裝'}）`,180,G.patienceBonus>=1,G.patienceBonus<1&&G.gold>=180,()=>{
+    if(G.gold>=180&&G.patienceBonus<1){G.gold-=180;G.patienceBonus=1;addLog('候客室完成','info');renderShop();}
+  }));
+}
+function addSec(p,t){const d=document.createElement('div');d.className='shop-section-title';d.textContent=t;p.appendChild(d);}
+function mkGrid(){const g=document.createElement('div');g.className='shop-grid';return g;}
+function mkItem(name,desc,cost,maxed,canBuy,onClick){
+  const item=document.createElement('div');item.className='shop-item'+(maxed?' maxed':'');
+  item.innerHTML=`<div class="shop-item-name">${name}</div><div class="shop-item-desc">${desc}</div>`;
+  if(!maxed){
+    const btn=document.createElement('button');btn.className='shop-buy-btn';btn.disabled=!canBuy;btn.textContent=`💰 ${cost}`;btn.addEventListener('click',onClick);item.appendChild(btn);
+  } else {
+    const ml=document.createElement('div');ml.style.cssText='font-size:10px;color:var(--green);margin-top:4px;font-family:var(--mono)';ml.textContent='✓ 已購買';item.appendChild(ml);
+  }
+  return item;
+}
+
+function addNewElev(){
+  const i=G.numElevators-1;
+  const e={
+    id:i,color:ELEV_COLORS[i],
+    floor:Math.floor(G.numFloors/2),pixelY:Math.floor(G.numFloors/2)*FLOOR_H,
+    target:Math.floor(G.numFloors/2),queue:[],dir:0,
+    state:'idle',doorTimer:0,pax:[],
+    capacity:4,speedMult:1,energyMult:1,mode:'auto',
+    speedLevel:0,capacityLevel:0,engineLevel:0,
+  };
+  G.elevators.push(e);
+  const layer=document.getElementById('elev-layer');
+  const car=document.createElement('div');
+  car.className='elev-car';car.id=`elev-car-${i}`;
+  car.style.borderColor=e.color;car.style.background=hexRgba(e.color,0.12);car.style.color=e.color;
+  car.style.width=ELEV_W+'px';car.style.height=ELEV_H+'px';
+  const sx=28+130+i*SHAFT_W+(SHAFT_W-ELEV_W)/2;
+  car.style.left=sx+'px';
+  car.innerHTML=`<div class="elev-label">${ELEV_NAMES[i]}</div><div class="elev-count" id="ec-${i}">0/${e.capacity}</div><div class="elev-dir" id="ed-${i}">─</div>`;
+  car.addEventListener('click',ev=>{ev.stopPropagation();selectElev(i);});
+  layer.appendChild(car);
+  e.el=car;
+  posElev(e);
+  rebuildAll();
+}
+
+function rebuildAll(){
+  buildFloors();
+  const layer=document.getElementById('elev-layer');
+  const totalW=28+130+G.numElevators*SHAFT_W;
+  document.getElementById('building').style.width=totalW+'px';
+  document.getElementById('building-col').style.width=totalW+'px';
+  G.elevators.forEach((e,i)=>{
+    layer.appendChild(e.el);
+    const sx=28+130+i*SHAFT_W+(SHAFT_W-ELEV_W)/2;
+    e.el.style.left=sx+'px';
+    if(e.floor>=G.numFloors){e.floor=G.numFloors-1;e.pixelY=e.floor*FLOOR_H;e.target=e.floor;}
+    posElev(e);
+  });
+  updatePanel();
+}
+
+// ── GAME OVER ──
+function triggerGameOver(){
+  if(G.gameOverShown) return;
+  G.gameOver=true;G.gameOverShown=true;
+  const sec=Math.floor(G.elapsed/1000),m=Math.floor(sec/60),s=sec%60;
+  document.getElementById('gameover-stats').innerHTML=
+    `最終分數：<span>${G.score.toLocaleString()}</span><br>
+     金幣賺取：<span>${G.gold}</span><br>
+     送達乘客：<span>${G.delivered}</span><br>
+     存活時間：<span>${m}:${s.toString().padStart(2,'0')}</span><br>
+     成就數量：<span>${G.achievements.size}/${ACH.length}</span>`;
+  document.getElementById('gameover-overlay').classList.add('open');
+}
+
+document.getElementById('restart-btn').addEventListener('click',()=>{
+  document.getElementById('gameover-overlay').classList.remove('open');
+  document.getElementById('power-warning').style.display='none';
+  ['log-area','ach-area','toast-area'].forEach(id=>document.getElementById(id).innerHTML='');
+  initState();
+  buildFloors();
+  buildElevators();
+  selectElev(0);
+  addLog('遊戲重新開始！','info');
+  G.lastTime=null;
+  requestAnimationFrame(loop);
+});
+
+// ── MAIN LOOP ──
+function loop(now){
+  if(G.gameOver) return;
+  if(!G.lastTime) G.lastTime=now;
+  const dt=Math.min(now-G.lastTime,100);
+  G.lastTime=now;
+  G.elapsed+=dt;
+  spawnPax(now);
+  updatePax(now);
+  G.elevators.forEach(e=>updateElev(e,dt,now));
+  updateEnergy(dt,now);
+  updateDiff(dt);
+  updateChain(dt);
+  if(G.emergencyCooldown>0) G.emergencyCooldown=Math.max(0,G.emergencyCooldown-dt);
+  renderPax(now);
+  renderElevs();
+  updatePanel();
+  updateUI();
+  checkAch();
+  requestAnimationFrame(loop);
+}
+
+// ── INIT ──
+initState();
+buildFloors();
+buildElevators();
+selectElev(0);
+addLog('歡迎來到電梯帝國！','info');
+addLog('點選電梯（A）再點選樓層來指派任務','info');
+addLog('切換手動模式可建立停靠序列','info');
+addLog('商店可解鎖更多電梯與升級','gold');
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
