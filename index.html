@@ -2,332 +2,461 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>電梯帝國</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:     #0d0f14;
-  --bg2:    #13161e;
-  --bg3:    #1a1e28;
-  --bg4:    #222736;
-  --border: rgba(255,255,255,0.07);
-  --border2:rgba(255,255,255,0.14);
-  --text:   #e8eaf0;
-  --text2:  #8a90a8;
-  --text3:  #555c78;
-  --accent: #4fc3f7;
-  --gold:   #ffc107;
-  --green:  #4caf50;
-  --red:    #ef5350;
-  --orange: #ff9800;
-  --mono: 'Share Tech Mono', monospace;
-  --sans: 'Noto Sans TC', sans-serif;
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; }
-body {
-  background: var(--bg); color: var(--text);
-  font-family: var(--sans); font-size: 13px;
-  display: flex; flex-direction: column; height: 100vh;
+  --bg:         #000000;
+  --card-bg:    #1c1c1e;
+  --card-hover: #2c2c2e;
+  --border:     rgba(255,255,255,0.1);
+  --text:       #ffffff;
+  --text-dim:   #8e8e93;
+  --accent:     #0a84ff;
+  --gold:       #ffd60a;
+  --green:      #32d74b;
+  --red:        #ff453a;
+  --mono:       'Share Tech Mono', monospace;
+  --sans:       -apple-system, "SF Pro Text", "Noto Sans TC", sans-serif;
+
+  /* iPhone 16 安全區 */
+  --safe-top:    env(safe-area-inset-top, 59px);
+  --safe-bottom: env(safe-area-inset-bottom, 34px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+
+  /* 版面常數 — 手機優先 */
+  --topbar-h:    52px;
+  --ctrl-h:      180px;   /* 底部控制列高度 */
 }
 
-/* ── TOPBAR ── */
+*, *::before, *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+html { height: 100%; }
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  overflow: hidden;
+  /* 撐滿含安全區的全螢幕 */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══════════════════════════════
+   TOPBAR  (固定高度)
+══════════════════════════════ */
 #topbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 16px;
-  background: var(--bg2); border-bottom: 1px solid var(--border);
+  height: var(--topbar-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  z-index: 50;
+}
+#game-title {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+.top-stats-group { display: flex; gap: 18px; }
+.top-stat { display: flex; flex-direction: column; align-items: flex-end; }
+.top-stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.top-stat-val   { font-size: 15px; font-weight: 700; font-family: var(--mono); line-height: 1.2; }
+
+/* ══════════════════════════════
+   BUILDING AREA  (flex 撐滿剩餘高度)
+══════════════════════════════ */
+#building-wrap {
+  flex: 1;
+  min-height: 0;     /* 讓 flex child 可縮小 */
+  position: relative;
+  overflow: hidden;
+}
+#building-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 0 8px 0;
+}
+#building-scroll::-webkit-scrollbar { display: none; }
+
+#building {
+  position: relative;
+  margin: 0 auto;
+  /* width 由 JS 動態設定 */
+}
+#elev-layer {
+  position: absolute;
+  top: 8px;   /* 對齊 padding */
+  left: 0;
+  pointer-events: none;
+  z-index: 5;
+  /* width/height 由 JS 設定 */
+}
+
+/* ── floor rows ── */
+.floor-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  /* height 由 JS 常數 FLOOR_H 決定，此處給預設避免閃爍 */
+  height: 48px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.floor-row:active { background: var(--card-hover); }
+
+.floor-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 36px;
+  text-align: center;
+  font-weight: 700;
   flex-shrink: 0;
 }
-#game-title { font-family: var(--mono); font-size: 15px; color: var(--accent); letter-spacing: 3px; }
-.top-stat {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 6px; padding: 5px 12px;
-}
-.top-stat-label { font-size: 10px; color: var(--text3); font-family: var(--mono); }
-.top-stat-val   { font-size: 15px; font-weight: 700; font-family: var(--mono); }
-#score-val     { color: var(--accent); }
-#time-val      { color: var(--text2); font-size: 13px; }
-#delivered-val { color: var(--green); }
-
-/* ── MAIN ── */
-#main { display: flex; flex: 1; overflow: hidden; }
-
-/* ── BUILDING COL ── */
-#building-col {
-  display: flex; flex-direction: column;
-  background: var(--bg2); border-right: 1px solid var(--border);
-  flex-shrink: 0; position: relative;
-}
-#building-scroll { overflow-y: auto; overflow-x: hidden; flex: 1; }
-#building-scroll::-webkit-scrollbar { width: 4px; }
-#building-scroll::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
-#building { position: relative; }
-
-/* ── FLOORS ── */
-.floor-row {
-  height: 52px; display: flex; align-items: center;
-  border-bottom: 1px solid var(--border); position: relative;
-  cursor: pointer; user-select: none; transition: background 0.1s;
-}
-.floor-row:hover { background: rgba(79,195,247,0.05); }
-.floor-num {
-  font-family: var(--mono); font-size: 11px; color: var(--text3);
-  width: 30px; text-align: right; padding-right: 6px; flex-shrink: 0;
-}
-.floor-arrows {
-  width: 18px; flex-shrink: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-}
-.arrow-up   { color: var(--green); font-size: 10px; line-height: 1; }
-.arrow-down { color: var(--red);   font-size: 10px; line-height: 1; }
 .floor-waiting {
-  flex: 1; display: flex; align-items: center; gap: 4px;
-  padding: 0 8px; overflow: hidden; min-width: 80px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  overflow: hidden;
 }
 
-/* ── PAX FIGURE ── */
-.pax-fig { display: flex; flex-direction: column; align-items: center; }
-.pax-head { width: 8px; height: 8px; border-radius: 50%; }
-.pax-body { width: 10px; height: 11px; border-radius: 3px 3px 0 0; }
-.pax-dest { font-family: var(--mono); font-size: 8px; color: var(--text3); margin-top: 1px; }
-.pax-normal .pax-head, .pax-normal .pax-body { background: #4fc3f7; }
-.pax-vip    .pax-head, .pax-vip    .pax-body { background: var(--gold); }
+/* ── pax figures ── */
+.pax-fig {
+  display: flex; flex-direction: column; align-items: center;
+  animation: paxIn 0.25s ease;
+  flex-shrink: 0;
+}
+@keyframes paxIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pax-head { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.pax-body { width: 10px; height: 11px; border-radius: 3px 3px 0 0; background: var(--accent); margin-top: 1px; }
+.pax-dest { font-family: var(--mono); font-size: 8px; margin-top: 2px; font-weight: 700; color: var(--text-dim); }
+.pax-vip .pax-head,
+.pax-vip .pax-body { background: var(--gold); }
+.pax-vip .pax-dest { color: var(--gold); }
 
-/* ── ELEVATOR LAYER ── */
-#elev-layer { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; }
+/* ── elevator cars ── */
 .elev-car {
-  position: absolute; border-radius: 5px; border: 1.5px solid;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; pointer-events: all; cursor: pointer;
-  transition: box-shadow 0.2s;
+  position: absolute;
+  border-radius: 8px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: all; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
 }
-.elev-car.selected { box-shadow: 0 0 0 2px #fff, 0 0 14px rgba(255,255,255,0.25); }
-.elev-car.door-open { animation: doorpulse 0.6s; }
-@keyframes doorpulse { 0%{opacity:0.6} 50%{opacity:1} 100%{opacity:1} }
-.elev-id  { font-family: var(--mono); font-size: 9px; font-weight: 700; opacity: 0.85; }
-.elev-cnt { font-family: var(--mono); font-size: 10px; opacity: 0.75; }
-.elev-dir { font-size: 12px; line-height: 1; }
+.elev-car.selected {
+  border-width: 2px !important;
+  border-color: #fff !important;
+  transform: scale(1.06);
+  box-shadow: 0 0 16px rgba(255,255,255,0.25);
+}
+.elev-dir { font-size: 13px; font-weight: 700; line-height: 1; }
+.elev-cnt { font-family: var(--mono); font-size: 9px; font-weight: 700; margin-top: 2px; }
 
-/* ── RIGHT PANEL ── */
-#right-panel {
-  width: 220px; flex-shrink: 0; background: var(--bg2);
-  border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
-}
-.panel-section { border-bottom: 1px solid var(--border); padding: 10px 12px; }
-.panel-title {
-  font-family: var(--mono); font-size: 10px; color: var(--text3);
-  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+/* ══════════════════════════════
+   BOTTOM CONTROLS
+══════════════════════════════ */
+#ctrl-bar {
+  height: var(--ctrl-h);
+  flex-shrink: 0;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 20px 8px;
+  gap: 10px;
 }
 
-/* ── ELEVATOR CARDS ── */
-.elev-card {
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;
-  cursor: pointer; transition: border-color 0.2s;
+/* 電梯選擇頁籤 */
+#elev-tabs {
+  display: flex;
+  gap: 8px;
 }
-.elev-card:hover { border-color: var(--border2); }
-.elev-card.selected { border-color: var(--accent); background: rgba(79,195,247,0.06); }
-.elev-card-top {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+.elev-tab {
+  flex: 1; height: 32px; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--text-dim);
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; transition: all 0.15s;
 }
-.elev-card-name { font-family: var(--mono); font-size: 11px; font-weight: 700; }
-.elev-card-floor { font-family: var(--mono); font-size: 10px; color: var(--text2); }
-.elev-card-pax  { font-size: 11px; color: var(--text2); }
+.elev-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
 
-/* ── CONTROLS ── */
-#ctrl-section { padding: 12px; border-bottom: 1px solid var(--border); }
-#ctrl-btn-row { display: flex; gap: 8px; margin-bottom: 8px; }
-.ctrl-btn {
-  flex: 1; padding: 12px 0; border-radius: 7px; border: 1.5px solid;
-  font-family: var(--mono); font-size: 20px; cursor: pointer;
-  background: transparent; transition: background 0.12s, transform 0.08s;
+/* 方向按鈕 */
+#dir-row {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+.dir-btn {
+  flex: 1;
+  border-radius: 16px;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
   display: flex; align-items: center; justify-content: center;
+  transition: all 0.08s;
+  /* 增大觸控面積 */
+  min-height: 60px;
 }
-.ctrl-btn.active { transform: scale(0.93); }
-#btn-up   { border-color: var(--green); color: var(--green); }
-#btn-up.active   { background: rgba(76,175,80,0.2); }
-#btn-down { border-color: var(--red);   color: var(--red);   }
-#btn-down.active { background: rgba(239,83,80,0.2); }
+.dir-btn:active { transform: scale(0.90); }
+#btn-up   { background: rgba(50, 215, 75, 0.18); color: var(--green); }
+#btn-down { background: rgba(255, 69, 58, 0.18); color: var(--red);  }
 #btn-stop {
-  width: 100%; padding: 7px 0; border-radius: 6px;
-  border: 1px solid var(--border2); color: var(--text2);
-  background: transparent; font-family: var(--mono); font-size: 11px;
-  cursor: pointer; transition: background 0.12s;
-}
-#btn-stop:hover { background: var(--bg3); color: var(--text); }
-.ctrl-hint {
-  font-size: 10px; color: var(--text3); text-align: center;
-  margin-top: 7px; font-family: var(--mono);
-}
-
-/* ── LOG ── */
-#log-header { padding: 10px 12px 4px; border-bottom: none; }
-#log-area {
-  flex: 1; overflow-y: auto; padding: 4px 12px 8px;
-  display: flex; flex-direction: column; gap: 2px;
-}
-#log-area::-webkit-scrollbar { width: 3px; }
-#log-area::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
-.log-item {
-  font-size: 10px; font-family: var(--mono); padding: 2px 0;
-  border-bottom: 1px solid var(--border); color: var(--text2);
-}
-.log-item.good { color: var(--green); }
-.log-item.gold { color: var(--gold); }
-.log-item.info { color: var(--accent); }
-
-/* ── FLOAT ── */
-.float-score {
-  position: fixed; pointer-events: none; font-family: var(--mono);
-  font-size: 14px; font-weight: 700; z-index: 999;
-  animation: floatUp 1s ease-out forwards;
-}
-@keyframes floatUp {
-  0%   { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-40px); }
+  flex: 0.8;
+  background: var(--card-hover);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 16px;
+  min-height: 60px;
 }
 
-/* ── GAME OVER ── */
+/* ══════════════════════════════
+   LOG OVERLAY (tap-to-open)
+══════════════════════════════ */
+#log-toggle {
+  position: absolute;
+  top: calc(var(--topbar-h) + 8px);
+  right: 12px;
+  z-index: 40;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(28,28,30,0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+#log-panel {
+  position: absolute;
+  top: calc(var(--topbar-h) + 50px);
+  right: 12px;
+  width: 200px;
+  max-height: 220px;
+  background: rgba(28,28,30,0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  overflow-y: auto;
+  z-index: 39;
+  display: none;
+  scrollbar-width: none;
+}
+#log-panel.open { display: block; }
+#log-panel::-webkit-scrollbar { display: none; }
+.log-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.log-item  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+/* ══════════════════════════════
+   GAME OVER
+══════════════════════════════ */
 #gameover-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.82);
-  z-index: 600; display: none; align-items: center; justify-content: center;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92);
+  backdrop-filter: blur(16px);
+  z-index: 200;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
 }
-#gameover-overlay.open { display: flex; }
+#gameover-overlay.show { display: flex; }
 #gameover-box {
-  background: var(--bg2); border: 1px solid var(--border2);
-  border-radius: 12px; padding: 40px 48px; text-align: center; min-width: 300px;
+  background: var(--card-bg);
+  border-radius: 28px;
+  padding: 40px 32px;
+  text-align: center;
+  width: 100%; max-width: 340px;
+  border: 1px solid var(--border);
 }
-#gameover-box h1 {
-  font-family: var(--mono); font-size: 26px; color: var(--accent);
-  letter-spacing: 4px; margin-bottom: 6px;
-}
-#gameover-box p { color: var(--text2); font-size: 12px; margin-bottom: 20px; }
-#gameover-stats { margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px; }
-#gameover-stats span { font-family: var(--mono); font-size: 14px; }
-#gameover-stats span b { color: var(--accent); }
+#go-title  { font-family: var(--mono); font-size: 36px; margin-bottom: 6px; color: var(--gold); }
+#go-sub    { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+#go-stats  { font-family: var(--mono); font-size: 13px; line-height: 2.2; margin-bottom: 8px; }
 #restart-btn {
-  padding: 11px 36px; background: var(--accent); color: var(--bg);
-  border: none; border-radius: 7px; font-family: var(--mono); font-size: 13px;
-  cursor: pointer; letter-spacing: 1px; transition: opacity 0.2s;
+  width: 100%; padding: 16px;
+  background: var(--accent); color: white;
+  border: none; border-radius: 16px;
+  font-size: 16px; font-weight: 700;
+  margin-top: 16px; cursor: pointer;
+  transition: opacity 0.15s;
 }
-#restart-btn:hover { opacity: 0.85; }
+#restart-btn:active { opacity: 0.75; }
+
+/* ══════════════════════════════
+   DESKTOP 覆蓋（寬螢幕維持橫排）
+══════════════════════════════ */
+@media (min-width: 600px) {
+  :root { --ctrl-h: 0px; }
+  body { flex-direction: column; }
+  #building-wrap { flex: 1; }
+  #ctrl-bar { display: none; }
+  /* 桌機版把控制列嵌在右欄（可依需求擴充） */
+}
 </style>
 </head>
 <body>
 
+<!-- TOPBAR -->
 <div id="topbar">
-  <div id="game-title">電梯帝國</div>
-  <div class="top-stat">
-    <span class="top-stat-label">分數</span>
-    <span class="top-stat-val" id="score-val">0</span>
-  </div>
-  <div class="top-stat">
-    <span class="top-stat-label">送達</span>
-    <span class="top-stat-val" id="delivered-val">0</span>
-  </div>
-  <div class="top-stat">
-    <span class="top-stat-label">時間</span>
-    <span class="top-stat-val" id="time-val">00:00</span>
+  <div id="game-title">ELEVATOR EMPIRE</div>
+  <div class="top-stats-group">
+    <div class="top-stat">
+      <span class="top-stat-label">Score</span>
+      <span class="top-stat-val" id="score-val" style="color:var(--gold)">0</span>
+    </div>
+    <div class="top-stat">
+      <span class="top-stat-label">送達</span>
+      <span class="top-stat-val" id="delivered-val" style="color:var(--green)">0</span>
+    </div>
+    <div class="top-stat">
+      <span class="top-stat-label">Time</span>
+      <span class="top-stat-val" id="time-val">00:00</span>
+    </div>
   </div>
 </div>
 
-<div id="main">
-  <div id="building-col">
-    <div id="building-scroll">
-      <div id="building"></div>
-    </div>
+<!-- LOG TOGGLE -->
+<div id="log-toggle" onclick="toggleLog()">📋</div>
+<div id="log-panel">
+  <div class="log-label">Activity Log</div>
+  <div id="log-area"></div>
+</div>
+
+<!-- BUILDING -->
+<div id="building-wrap">
+  <div id="building-scroll">
+    <div id="building"></div>
     <div id="elev-layer"></div>
   </div>
+</div>
 
-  <div id="right-panel">
-    <div class="panel-section">
-      <div class="panel-title">電梯狀態</div>
-      <div id="elev-cards"></div>
-    </div>
-
-    <div id="ctrl-section">
-      <div class="panel-title">操控選中電梯</div>
-      <div id="ctrl-btn-row">
-        <button class="ctrl-btn" id="btn-up">▲</button>
-        <button class="ctrl-btn" id="btn-down">▼</button>
-      </div>
-      <button id="btn-stop">■ 停止 / 開門</button>
-      <div class="ctrl-hint">方向鍵操控 · 數字 1/2 切換梯 · 空白停止</div>
-    </div>
-
-    <div id="log-header">
-      <div class="panel-title" style="margin-bottom:0">動態紀錄</div>
-    </div>
-    <div id="log-area"></div>
+<!-- BOTTOM CONTROLS -->
+<div id="ctrl-bar">
+  <!-- 電梯選擇 -->
+  <div id="elev-tabs">
+    <button class="elev-tab active" id="tab-0" onclick="selectElev(0)">
+      <span style="color:#0a84ff">■</span> 電梯 A
+    </button>
+    <button class="elev-tab" id="tab-1" onclick="selectElev(1)">
+      <span style="color:#5e5ce6">■</span> 電梯 B
+    </button>
+  </div>
+  <!-- 方向 + 停止 -->
+  <div id="dir-row">
+    <button class="dir-btn" id="btn-up">▲</button>
+    <button class="dir-btn" id="btn-stop">STOP<br>OPEN</button>
+    <button class="dir-btn" id="btn-down">▼</button>
   </div>
 </div>
 
+<!-- GAME OVER -->
 <div id="gameover-overlay">
   <div id="gameover-box">
-    <h1>RESULT</h1>
-    <p>本次電梯調度結束</p>
-    <div id="gameover-stats"></div>
-    <button id="restart-btn">再玩一次</button>
+    <div id="go-title">FINISH</div>
+    <div id="go-sub">Operation Completed</div>
+    <div id="go-stats"></div>
+    <button id="restart-btn" onclick="location.reload()">PLAY AGAIN</button>
   </div>
 </div>
 
 <script>
-// ═══════════════════════════
-//  CONFIG
-// ═══════════════════════════
-const NUM_FLOORS   = 10;
-const NUM_ELEVS    = 2;
-const CAPACITY     = 6;
-const FLOOR_H      = 52;
-const ELEV_W       = 44;
-const ELEV_H       = FLOOR_H - 8;
-const PAX_AREA_W   = 160;   // pax display width
-const SHAFT_W      = 52;
-const SPEED        = FLOOR_H * 2.4;  // px/sec
-const DOOR_TIME    = 750;            // ms
-const SPAWN_MS     = 1800;           // ms between spawns
+/* ══════════════════════════════
+   CONSTANTS
+══════════════════════════════ */
+const NUM_FLOORS = 10;
+const NUM_ELEVS  = 2;
+const CAPACITY   = 6;
+const FLOOR_H    = 52;      // px per floor
+const ELEV_W     = 40;
+const ELEV_H     = 44;
+const FLOOR_NUM_W = 36;     // 層號欄寬
+const PAX_AREA_W  = 0;      // 動態計算
+const SHAFT_W     = 50;
+const SPEED       = FLOOR_H * 2.5;
+const DOOR_TIME   = 800;
+const SPAWN_MS    = 2000;
+const GAME_DURATION = 3 * 60 * 1000; // 3 分鐘
 
-const COLORS = ['#4fc3f7','#4caf50','#ffc107','#ff6b9d'];
-const NAMES  = ['A','B','C','D'];
+const COLORS = ['#0a84ff', '#5e5ce6'];
 
-// ═══════════════════════════
-//  STATE
-// ═══════════════════════════
 let G = {};
 
+/* ══════════════════════════════
+   LAYOUT CALCULATION
+══════════════════════════════ */
+function getBuildingWidth() {
+  const wrapW = document.getElementById('building-wrap').clientWidth;
+  // 讓建築物撐滿容器，但留點邊距
+  return Math.min(wrapW, 393); // 最大 393pt (iPhone 16 邏輯寬)
+}
+
+function getShaftStartX(buildingW) {
+  // 層號 + 等待區（動態）+ 電梯井
+  const shaftsTotal = NUM_ELEVS * SHAFT_W;
+  const paxW = buildingW - FLOOR_NUM_W - shaftsTotal - 8;
+  return FLOOR_NUM_W + Math.max(paxW, 60);
+}
+
+/* ══════════════════════════════
+   INIT
+══════════════════════════════ */
 function initState() {
   G = {
-    score: 0, delivered: 0,
-    elapsed: 0, lastTime: null, gameOver: false,
-    passengers: [], elevators: [],
-    selectedElev: 0,
-    spawnTimer: 0, uid: 0,
-    logs: [],
-    // keyboard tracking
-    keyUp: false, keyDown: false,
+    score: 0, delivered: 0, elapsed: 0, lastTime: null, gameOver: false,
+    passengers: [], elevators: [], selectedElev: 0,
+    spawnTimer: 0, uid: 0, logs: [],
   };
 }
 
-// ═══════════════════════════
-//  BUILD UI
-// ═══════════════════════════
 function buildFloors() {
   const bld = document.getElementById('building');
   bld.innerHTML = '';
-  const totalW = 30 + PAX_AREA_W + NUM_ELEVS * SHAFT_W;
-  bld.style.width = totalW + 'px';
-  document.getElementById('building-col').style.width = totalW + 'px';
+  const W = getBuildingWidth();
+  bld.style.width = W + 'px';
 
   for (let f = NUM_FLOORS - 1; f >= 0; f--) {
     const row = document.createElement('div');
     row.className = 'floor-row';
-    row.id = `floor-${f}`;
-    row.style.width = totalW + 'px';
+    row.style.height = FLOOR_H + 'px';
+    row.style.width  = W + 'px';
     row.innerHTML = `
       <div class="floor-num">${f + 1}</div>
-      <div class="floor-arrows" id="farrow-${f}"></div>
       <div class="floor-waiting" id="fwait-${f}"></div>
     `;
     row.addEventListener('click', () => clickFloor(f));
@@ -336,120 +465,89 @@ function buildFloors() {
 }
 
 function buildElevators() {
-  const layer = document.getElementById('elev-layer');
+  const layer  = document.getElementById('elev-layer');
   layer.innerHTML = '';
   G.elevators = [];
 
+  const W = getBuildingWidth();
+  const shaftX = getShaftStartX(W);
+  // 設定 layer 寬度讓絕對定位正確
+  layer.style.width  = W + 'px';
+  layer.style.height = (NUM_FLOORS * FLOOR_H) + 'px';
+
   [0, NUM_FLOORS - 1].forEach((sf, i) => {
     const e = {
-      id: i, color: COLORS[i],
-      floor: sf, pixelY: sf * FLOOR_H,
-      target: -1,    // -1 = no click target
-      dir: 0,        // -1 | 0 | 1
-      pressing: false, // button held
-      state: 'idle', // idle | moving | door
-      doorTimer: 0,
-      pax: [],
+      id: i, color: COLORS[i], floor: sf,
+      pixelY: sf * FLOOR_H,
+      target: -1, dir: 0, pressing: false, state: 'idle', doorTimer: 0, pax: [],
     };
-
-    const x = 30 + PAX_AREA_W + i * SHAFT_W + (SHAFT_W - ELEV_W) / 2;
+    const x = shaftX + i * SHAFT_W + (SHAFT_W - ELEV_W) / 2;
     const car = document.createElement('div');
     car.className = 'elev-car' + (i === 0 ? ' selected' : '');
     car.id = `ecar-${i}`;
-    car.style.cssText = `border-color:${e.color};background:${rgba(e.color,.12)};color:${e.color};width:${ELEV_W}px;height:${ELEV_H}px;left:${x}px;`;
-    car.innerHTML = `<div class="elev-dir" id="edir-${i}">─</div><div class="elev-id">${NAMES[i]}</div><div class="elev-cnt" id="ecnt-${i}">0/${CAPACITY}</div>`;
+    car.style.cssText = `
+      background: var(--card-bg);
+      border: 1.5px solid ${e.color};
+      color: ${e.color};
+      width: ${ELEV_W}px;
+      height: ${ELEV_H}px;
+      left: ${x}px;
+    `;
+    car.innerHTML = `<div class="elev-dir" id="edir-${i}">—</div><div class="elev-cnt" id="ecnt-${i}">0</div>`;
     car.addEventListener('click', ev => { ev.stopPropagation(); selectElev(i); });
     layer.appendChild(car);
 
-    e.el = car;
+    e.el  = car;
+    e.shaftX = x;
     posElev(e);
     G.elevators.push(e);
   });
-
-  buildElevCards();
 }
 
-function buildElevCards() {
-  const area = document.getElementById('elev-cards');
-  area.innerHTML = '';
-  G.elevators.forEach((e, i) => {
-    const c = document.createElement('div');
-    c.className = 'elev-card' + (i === G.selectedElev ? ' selected' : '');
-    c.id = `ecard-${i}`;
-    c.innerHTML = `
-      <div class="elev-card-top">
-        <span class="elev-card-name" style="color:${e.color}">${NAMES[i]} 號梯</span>
-        <span class="elev-card-floor" id="ecfloor-${i}">${e.floor+1}F</span>
-      </div>
-      <div class="elev-card-pax" id="ecpax-${i}">載客：0 / ${CAPACITY}</div>`;
-    c.addEventListener('click', () => selectElev(i));
-    area.appendChild(c);
-  });
-}
-
-// ═══════════════════════════
-//  SELECTION
-// ═══════════════════════════
+/* ══════════════════════════════
+   ELEVATOR SELECTION
+══════════════════════════════ */
 function selectElev(i) {
   G.selectedElev = i;
-  document.querySelectorAll('.elev-car').forEach((el, idx) => el.classList.toggle('selected', idx === i));
-  document.querySelectorAll('.elev-card').forEach((el, idx) => el.classList.toggle('selected', idx === i));
+  document.querySelectorAll('.elev-car').forEach((el, idx) =>
+    el.classList.toggle('selected', idx === i));
+  document.querySelectorAll('.elev-tab').forEach((el, idx) =>
+    el.classList.toggle('active', idx === i));
 }
 
-// ═══════════════════════════
-//  CONTROLS
-// ═══════════════════════════
+/* ══════════════════════════════
+   CONTROLS
+══════════════════════════════ */
 function pressUp(on) {
   const e = G.elevators[G.selectedElev];
   if (!e || e.state === 'door') return;
   e.pressing = on;
-  if (on) {
-    e.dir = 1;
-    e.target = -1;
-    e.state = 'moving';
-    document.getElementById('btn-up').classList.toggle('active', true);
-  } else {
-    document.getElementById('btn-up').classList.toggle('active', false);
-    if (e.dir === 1) snapStop(e);
-  }
+  if (on) { e.dir = 1; e.target = -1; e.state = 'moving'; }
+  else if (e.dir === 1) snapStop(e);
 }
-
 function pressDown(on) {
   const e = G.elevators[G.selectedElev];
   if (!e || e.state === 'door') return;
   e.pressing = on;
-  if (on) {
-    e.dir = -1;
-    e.target = -1;
-    e.state = 'moving';
-    document.getElementById('btn-down').classList.toggle('active', true);
-  } else {
-    document.getElementById('btn-down').classList.toggle('active', false);
-    if (e.dir === -1) snapStop(e);
-  }
+  if (on) { e.dir = -1; e.target = -1; e.state = 'moving'; }
+  else if (e.dir === -1) snapStop(e);
 }
-
 function snapStop(e) {
   e.floor  = Math.round(e.pixelY / FLOOR_H);
   e.pixelY = e.floor * FLOOR_H;
-  e.dir    = 0;
-  e.pressing = false;
+  e.dir = 0; e.pressing = false;
   openDoors(e);
 }
-
 function clickFloor(f) {
   const e = G.elevators[G.selectedElev];
   if (!e || e.state === 'door') return;
   if (f === e.floor) { openDoors(e); return; }
-  e.target  = f;
-  e.dir     = f > e.floor ? 1 : -1;
-  e.pressing = false;
-  e.state   = 'moving';
+  e.target = f; e.dir = f > e.floor ? 1 : -1; e.state = 'moving';
 }
 
-// ═══════════════════════════
-//  ELEVATOR PHYSICS
-// ═══════════════════════════
+/* ══════════════════════════════
+   PHYSICS
+══════════════════════════════ */
 function updateElev(e, dt) {
   if (e.state === 'door') {
     e.doorTimer -= dt;
@@ -458,273 +556,199 @@ function updateElev(e, dt) {
   }
   if (e.state !== 'moving') return;
 
-  const px = SPEED * (dt / 1000);
-  e.pixelY += e.dir * px;
-
-  // Clamp to building
+  const px   = SPEED * (dt / 1000);
   const maxPx = (NUM_FLOORS - 1) * FLOOR_H;
-  e.pixelY = Math.max(0, Math.min(maxPx, e.pixelY));
+  e.pixelY = Math.max(0, Math.min(maxPx, e.pixelY + e.dir * px));
   e.floor  = Math.round(e.pixelY / FLOOR_H);
 
-  // Hit wall while pressing
   if (e.pressing) {
     if ((e.dir === 1 && e.pixelY >= maxPx) || (e.dir === -1 && e.pixelY <= 0)) {
-      snapStop(e);
-      return;
+      snapStop(e); return;
     }
-  }
-
-  // Click-to-go: reached target
-  if (!e.pressing && e.target >= 0) {
-    const targetPx = e.target * FLOOR_H;
-    if ((e.dir === 1 && e.pixelY >= targetPx) || (e.dir === -1 && e.pixelY <= targetPx)) {
-      e.pixelY = targetPx;
-      e.floor  = e.target;
-      e.target = -1;
-      e.dir    = 0;
-      e.state  = 'idle';
-      openDoors(e);
-      return;
-    }
-  }
-
-  // While moving, check if any passenger wants to drop off here
-  if (e.pressing) {
     const f = Math.round(e.pixelY / FLOOR_H);
-    const snap = Math.abs(e.pixelY - f * FLOOR_H) < 3;
-    if (snap && e.pax.some(p => p.dest === f)) {
-      e.pixelY = f * FLOOR_H;
-      e.floor  = f;
+    if (Math.abs(e.pixelY - f * FLOOR_H) < 4 && e.pax.some(p => p.dest === f)) {
+      e.pixelY = f * FLOOR_H; e.floor = f; openDoors(e);
+    }
+    return;
+  }
+
+  if (e.target >= 0) {
+    const tPx = e.target * FLOOR_H;
+    if ((e.dir === 1 && e.pixelY >= tPx) || (e.dir === -1 && e.pixelY <= tPx)) {
+      e.pixelY = tPx; e.floor = e.target; e.target = -1; e.dir = 0; e.state = 'idle';
       openDoors(e);
     }
   }
 }
 
 function openDoors(e) {
-  e.state     = 'door';
-  e.doorTimer = DOOR_TIME;
-  e.el.classList.add('door-open');
+  e.state = 'door'; e.doorTimer = DOOR_TIME;
+  e.el.style.background = 'rgba(255,255,255,0.15)';
   handleExchange(e);
 }
-
 function closeDoors(e) {
-  e.el.classList.remove('door-open');
-  e.state = e.pressing ? 'moving' : 'idle';
+  e.el.style.background = 'var(--card-bg)';
+  e.state   = e.pressing ? 'moving' : 'idle';
   if (!e.pressing) e.dir = 0;
 }
-
 function handleExchange(e) {
-  // Drop off passengers
   e.pax = e.pax.filter(p => {
     if (p.dest !== e.floor) return true;
-    const pts = p.type === 'vip' ? 3 : 1;
-    G.score += pts;
-    G.delivered++;
-    addLog(`${p.type==='vip'?'⭐VIP ':''}到達 ${e.floor+1}F  +${pts}分`, p.type==='vip'?'gold':'good');
-    floatScore(`+${pts}`, p.type==='vip'?'#ffc107':'#4fc3f7', e);
+    const pts = p.type === 'vip' ? 5 : 1;
+    G.score += pts; G.delivered++;
+    addLog(`✓ ${p.type === 'vip' ? '⭐VIP' : '👤'} → ${e.floor + 1}F  +${pts}`);
     return false;
   });
-
-  // Board waiting passengers
   G.passengers.forEach(p => {
-    if (!p.waiting || p.start !== e.floor) return;
-    if (e.pax.length >= CAPACITY) return;
-    if (e.dir !== 0 && p.dir !== e.dir) return; // direction mismatch
-    p.waiting = false;
-    e.pax.push(p);
-    addLog(`上梯 ${p.start+1}F → ${p.dest+1}F`, 'info');
+    if (p.waiting && p.start === e.floor && e.pax.length < CAPACITY) {
+      if (e.dir === 0 || p.dir === e.dir) {
+        p.waiting = false; e.pax.push(p);
+      }
+    }
   });
 }
 
-// ═══════════════════════════
-//  SPAWN
-// ═══════════════════════════
+/* ══════════════════════════════
+   SPAWN
+══════════════════════════════ */
 function spawnPax(now) {
   if (now - G.spawnTimer < SPAWN_MS) return;
   G.spawnTimer = now;
   const start = Math.floor(Math.random() * NUM_FLOORS);
-  let dest;
-  do { dest = Math.floor(Math.random() * NUM_FLOORS); } while (dest === start);
+  let dest; do { dest = Math.floor(Math.random() * NUM_FLOORS); } while (dest === start);
   G.passengers.push({
     id: G.uid++, start, dest,
     dir: dest > start ? 1 : -1,
-    type: Math.random() < 0.12 ? 'vip' : 'normal',
+    type: Math.random() < 0.15 ? 'vip' : 'normal',
     waiting: true,
   });
 }
 
-// ═══════════════════════════
-//  RENDER
-// ═══════════════════════════
+/* ══════════════════════════════
+   RENDER
+══════════════════════════════ */
 function posElev(e) {
-  const totalH = NUM_FLOORS * FLOOR_H;
-  e.el.style.top = (totalH - e.pixelY - FLOOR_H + 4) + 'px';
+  const scrollH = NUM_FLOORS * FLOOR_H;
+  e.el.style.top = (scrollH - e.pixelY - FLOOR_H + (FLOOR_H - ELEV_H) / 2) + 'px';
 }
 
-function renderElevs() {
+function render() {
   G.elevators.forEach(e => {
     posElev(e);
-    document.getElementById(`ecnt-${e.id}`).textContent = `${e.pax.length}/${CAPACITY}`;
-    const de = document.getElementById(`edir-${e.id}`);
-    de.textContent = e.dir === 1 ? '▲' : e.dir === -1 ? '▼' : '─';
-    de.style.color = e.dir === 1 ? 'var(--green)' : e.dir === -1 ? 'var(--red)' : e.color;
-    // card
-    const fe = document.getElementById(`ecfloor-${e.id}`);
-    const pe = document.getElementById(`ecpax-${e.id}`);
-    if (fe) fe.textContent = `${e.floor+1}F`;
-    if (pe) pe.textContent = `載客：${e.pax.length} / ${CAPACITY}`;
+    document.getElementById(`ecnt-${e.id}`).textContent = e.pax.length;
+    document.getElementById(`edir-${e.id}`).textContent =
+      e.dir === 1 ? '▲' : e.dir === -1 ? '▼' : '—';
   });
-}
 
-function renderPax() {
   for (let f = 0; f < NUM_FLOORS; f++) {
-    const w = document.getElementById(`fwait-${f}`);
-    const a = document.getElementById(`farrow-${f}`);
-    if (!w) continue;
+    const w    = document.getElementById(`fwait-${f}`);
     const here = G.passengers.filter(p => p.waiting && p.start === f);
-    w.innerHTML = here.map(p => `
-      <div class="pax-fig pax-${p.type}">
-        <div class="pax-head"></div>
-        <div class="pax-body"></div>
-        <div class="pax-dest">${p.dest+1}F</div>
-      </div>`).join('');
-    if (a) {
-      const up = here.some(p => p.dir === 1);
-      const dn = here.some(p => p.dir === -1);
-      a.innerHTML = (up ? '<div class="arrow-up">▲</div>' : '') + (dn ? '<div class="arrow-down">▼</div>' : '');
-    }
+    w.innerHTML = here.map(p =>
+      `<div class="pax-fig ${p.type === 'vip' ? 'pax-vip' : ''}">
+         <div class="pax-head"></div>
+         <div class="pax-body"></div>
+         <div class="pax-dest">${p.dest + 1}</div>
+       </div>`
+    ).join('');
   }
-}
 
-function renderHUD() {
   document.getElementById('score-val').textContent     = G.score;
   document.getElementById('delivered-val').textContent = G.delivered;
-  const s = Math.floor(G.elapsed / 1000);
+
+  const remain = Math.max(0, GAME_DURATION - G.elapsed);
+  const s = Math.floor(remain / 1000);
   document.getElementById('time-val').textContent =
-    `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+
+  if (remain <= 0 && !G.gameOver) endGame();
 }
 
-// ═══════════════════════════
-//  LOG + FLOAT
-// ═══════════════════════════
-function addLog(msg, type = '') {
-  G.logs.unshift({ msg, type });
-  if (G.logs.length > 40) G.logs.pop();
-  const area = document.getElementById('log-area');
-  area.innerHTML = G.logs.slice(0, 20).map(l =>
-    `<div class="log-item ${l.type}">${l.msg}</div>`
-  ).join('');
+/* ══════════════════════════════
+   LOG
+══════════════════════════════ */
+function addLog(msg) {
+  G.logs.unshift(msg);
+  document.getElementById('log-area').innerHTML =
+    G.logs.slice(0, 15).map(m => `<div class="log-item">${m}</div>`).join('');
+}
+function toggleLog() {
+  document.getElementById('log-panel').classList.toggle('open');
 }
 
-function floatScore(text, color, e) {
-  const r = e.el.getBoundingClientRect();
-  const el = document.createElement('div');
-  el.className = 'float-score';
-  el.style.cssText = `left:${r.left+r.width/2-10}px;top:${r.top}px;color:${color}`;
-  el.textContent = text;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1000);
+/* ══════════════════════════════
+   GAME OVER
+══════════════════════════════ */
+function endGame() {
+  G.gameOver = true;
+  const s = Math.floor(G.elapsed / 1000);
+  document.getElementById('go-stats').innerHTML =
+    `<div>得分 <span style="color:var(--gold)">${G.score}</span></div>` +
+    `<div>送達 <span style="color:var(--green)">${G.delivered}</span> 人</div>` +
+    `<div>時間 ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}</div>`;
+  document.getElementById('gameover-overlay').classList.add('show');
 }
 
-// ═══════════════════════════
-//  UTILITY
-// ═══════════════════════════
-function rgba(hex, a) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-// ═══════════════════════════
-//  MAIN LOOP
-// ═══════════════════════════
+/* ══════════════════════════════
+   GAME LOOP
+══════════════════════════════ */
 function loop(now) {
   if (G.gameOver) return;
   if (!G.lastTime) G.lastTime = now;
-  const dt = Math.min(now - G.lastTime, 80);
-  G.lastTime = now;
-  G.elapsed += dt;
-
+  const dt = Math.min(now - G.lastTime, 100);
+  G.lastTime = now; G.elapsed += dt;
   spawnPax(now);
   G.elevators.forEach(e => updateElev(e, dt));
-  renderElevs();
-  renderPax();
-  renderHUD();
-
+  render();
   requestAnimationFrame(loop);
 }
 
-// ═══════════════════════════
-//  EVENTS
-// ═══════════════════════════
+/* ══════════════════════════════
+   BUTTON EVENTS（同時支援 touch & mouse）
+══════════════════════════════ */
+function bindBtn(id, onDown, onUp) {
+  const btn = document.getElementById(id);
+  const down = ev => { ev.preventDefault(); onDown(); };
+  const up   = ()  => onUp();
+  btn.addEventListener('mousedown',  down);
+  btn.addEventListener('touchstart', down, { passive: false });
+  btn.addEventListener('mouseup',    up);
+  btn.addEventListener('touchend',   up);
+  btn.addEventListener('mouseleave', up);
+}
 
-// UP button
-const btnUp = document.getElementById('btn-up');
-btnUp.addEventListener('mousedown',  () => pressUp(true));
-btnUp.addEventListener('mouseup',    () => pressUp(false));
-btnUp.addEventListener('mouseleave', () => pressUp(false));
-btnUp.addEventListener('touchstart', e => { e.preventDefault(); pressUp(true); }, { passive: false });
-btnUp.addEventListener('touchend',   e => { e.preventDefault(); pressUp(false); }, { passive: false });
+bindBtn('btn-up',   () => pressUp(true),   () => pressUp(false));
+bindBtn('btn-down', () => pressDown(true),  () => pressDown(false));
+document.getElementById('btn-stop').addEventListener('click', () =>
+  snapStop(G.elevators[G.selectedElev]));
 
-// DOWN button
-const btnDn = document.getElementById('btn-down');
-btnDn.addEventListener('mousedown',  () => pressDown(true));
-btnDn.addEventListener('mouseup',    () => pressDown(false));
-btnDn.addEventListener('mouseleave', () => pressDown(false));
-btnDn.addEventListener('touchstart', e => { e.preventDefault(); pressDown(true); }, { passive: false });
-btnDn.addEventListener('touchend',   e => { e.preventDefault(); pressDown(false); }, { passive: false });
+/* ══════════════════════════════
+   SCROLL TO MIDDLE ON INIT
+══════════════════════════════ */
+function scrollToMiddle() {
+  const sc = document.getElementById('building-scroll');
+  sc.scrollTop = (sc.scrollHeight - sc.clientHeight) / 2;
+}
 
-// STOP button
-document.getElementById('btn-stop').addEventListener('click', () => {
-  const e = G.elevators[G.selectedElev];
-  if (!e) return;
-  pressUp(false);
-  pressDown(false);
-  snapStop(e);
-});
-
-// Keyboard
-const keysHeld = new Set();
-document.addEventListener('keydown', ev => {
-  if (keysHeld.has(ev.key)) return;
-  keysHeld.add(ev.key);
-  if (ev.key === 'ArrowUp')   { ev.preventDefault(); pressUp(true); }
-  if (ev.key === 'ArrowDown') { ev.preventDefault(); pressDown(true); }
-  if (ev.key === ' ')         { ev.preventDefault(); snapStop(G.elevators[G.selectedElev]); }
-  if (ev.key === '1') selectElev(0);
-  if (ev.key === '2') selectElev(1);
-});
-document.addEventListener('keyup', ev => {
-  keysHeld.delete(ev.key);
-  if (ev.key === 'ArrowUp')   pressUp(false);
-  if (ev.key === 'ArrowDown') pressDown(false);
-});
-
-// Restart
-document.getElementById('restart-btn').addEventListener('click', () => {
-  document.getElementById('gameover-overlay').classList.remove('open');
-  document.getElementById('log-area').innerHTML = '';
-  initState();
+/* ══════════════════════════════
+   RESIZE SUPPORT
+══════════════════════════════ */
+function rebuildLayout() {
   buildFloors();
   buildElevators();
-  selectElev(0);
-  addLog('遊戲重新開始！', 'info');
-  G.lastTime = null;
-  requestAnimationFrame(loop);
+  selectElev(G.selectedElev);
+}
+window.addEventListener('resize', () => {
+  if (!G.gameOver) rebuildLayout();
 });
 
-// ═══════════════════════════
-//  START
-// ═══════════════════════════
+/* ══════════════════════════════
+   START
+══════════════════════════════ */
 initState();
 buildFloors();
 buildElevators();
 selectElev(0);
-addLog('歡迎來到電梯帝國！', 'info');
-addLog('按住 ▲▼ 連續移動，放開即停止開門', 'info');
-addLog('點擊樓層列 → 直達指定層', 'info');
-addLog('鍵盤：方向鍵 / 空白停止 / 1·2 切換', 'info');
+scrollToMiddle();
 requestAnimationFrame(loop);
 </script>
 </body>
