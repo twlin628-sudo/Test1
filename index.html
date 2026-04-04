@@ -256,26 +256,30 @@ body {
 #action-row {
   display: flex; gap: 10px;
 }
-#btn-log {
+#btn-log, #btn-pax {
   height: 52px; width: 72px; flex-shrink: 0;
   border-radius: 10px;
   border: 2px solid var(--border2);
   color: var(--text2);
   background: transparent;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
-  letter-spacing: 0px;
   transition: background 0.1s, border-color 0.1s, color 0.1s;
   -webkit-tap-highlight-color: transparent;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 #btn-log.active {
   border-color: var(--gold);
   color: var(--gold);
   background: rgba(251,191,36,0.1);
 }
-#btn-log:active { background: var(--bg3); }
+#btn-pax.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(56,189,248,0.1);
+}
+#btn-log:active, #btn-pax:active { background: var(--bg3); }
 #btn-stop {
   flex: 1;
   height: 52px;
@@ -287,14 +291,74 @@ body {
   font-size: 16px;
   cursor: pointer;
   letter-spacing: 1px;
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
   -webkit-tap-highlight-color: transparent;
 }
-#btn-stop:active { background: rgba(56,189,248,0.22); }
+#btn-stop.door-is-open {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(52,211,153,0.1);
+}
+#btn-stop:active { opacity: 0.75; }
 
 .ctrl-hint {
   font-size: 11px; color: var(--text3);
   font-family: var(--mono); text-align: center;
+}
+
+/* ── PAX overlay panel (elevator interior) ── */
+#pax-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--bg2);
+  border-top: 1px solid var(--border2);
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  max-height: 55%;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+}
+#pax-overlay.open { display: flex; }
+#pax-overlay-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#pax-overlay-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 2px; }
+#pax-overlay-close { font-size: 14px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 0 4px; }
+#pax-list {
+  overflow-y: auto; padding: 12px 14px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.pax-list-row {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 14px;
+  padding: 7px 10px;
+  background: var(--bg3); border-radius: 7px;
+  border: 1px solid var(--border);
+}
+.pax-list-icon { font-size: 16px; }
+.pax-list-dest { color: var(--accent); font-weight: 700; font-size: 16px; }
+.pax-list-label { color: var(--text2); font-size: 12px; }
+#pax-overlay-empty {
+  font-family: var(--mono); font-size: 13px; color: var(--text3);
+  text-align: center; padding: 20px;
+}
+
+/* ── pause overlay tint ── */
+#pause-tint {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 25;
+  display: none;
+  align-items: center; justify-content: center;
+}
+#pause-tint.on { display: flex; }
+#pause-label {
+  font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,0.35);
+  letter-spacing: 3px;
 }
 
 /* ── FLOAT SCORE ── */
@@ -355,7 +419,7 @@ body {
     </div>
   </div>
 
-  <!-- Log overlay panel (inside game-area so it overlays floors) -->
+  <!-- Log overlay panel -->
   <div id="log-overlay">
     <div id="log-overlay-header">
       <div id="log-overlay-title">RECORD</div>
@@ -363,19 +427,32 @@ body {
     </div>
     <div id="log-list"></div>
   </div>
+
+  <!-- Pax overlay panel -->
+  <div id="pax-overlay">
+    <div id="pax-overlay-header">
+      <div id="pax-overlay-title">電梯乘客</div>
+      <button id="pax-overlay-close">✕</button>
+    </div>
+    <div id="pax-list"></div>
+  </div>
+
+  <!-- Pause tint -->
+  <div id="pause-tint" class=""><div id="pause-label">PAUSED</div></div>
 </div>
 
 <!-- CONTROLS -->
 <div id="controls">
   <div id="action-row">
     <button id="btn-log">📋<br>紀錄</button>
+    <button id="btn-pax">🧍<br>乘客</button>
     <button id="btn-stop">開門</button>
   </div>
   <div id="ctrl-row">
     <button class="ctrl-btn" id="btn-up">▲</button>
     <button class="ctrl-btn" id="btn-down">▼</button>
   </div>
-  <div class="ctrl-hint">按住 ▲▼ 移動 · 按開門手動上下客</div>
+  <div class="ctrl-hint">按住 ▲▼ 移動 · 按開門/關門上下客</div>
 </div>
 
 <script>
@@ -417,8 +494,9 @@ function initState() {
     uid:        0,
     logs:       [],
 
-    // track last counted floor for floor-move counter
     lastCountedFloor: 0,
+    paused: false,   // true when log or pax overlay is open
+    doorOpen: false, // explicit door toggle state
   };
 }
 
@@ -500,29 +578,16 @@ function clickFloor(f) {
   G.state    = 'moving';
 }
 
-function doOpenDoor() {
-  // Called only by player pressing btn-stop
-  if (G.state === 'moving') {
-    // Snap to nearest floor first
-    G.floor   = Math.round(G.pixelY / FLOOR_H);
-    G.pixelY  = G.floor * FLOOR_H;
-    G.dir     = 0;
-    G.pressing = false;
-    G.target  = -1;
-  }
-  if (G.state === 'door') return; // already open
-  openDoors();
-}
+// ═══════════════════════════════
+//  DOOR TOGGLE
+// ═══════════════════════════════
 
 // ═══════════════════════════════
 //  ELEVATOR PHYSICS
 // ═══════════════════════════════
 function updateElev(dt) {
-  if (G.state === 'door') {
-    G.doorTimer -= dt;
-    if (G.doorTimer <= 0) closeDoors();
-    return;
-  }
+  // Door state: player controls open/close, no auto-close
+  if (G.state === 'door') return;
   if (G.state !== 'moving') return;
 
   const px = SPEED * (dt / 1000);
@@ -562,22 +627,32 @@ function updateElev(dt) {
   }
 }
 
+function doToggleDoor() {
+  if (G.paused) return;
+  if (G.doorOpen) {
+    // Close door — do NOT board anyone, just close
+    closeDoors();
+  } else {
+    // Snap stop if moving, then open
+    if (G.state === 'moving') {
+      G.floor   = Math.round(G.pixelY / FLOOR_H);
+      G.pixelY  = G.floor * FLOOR_H;
+      G.dir     = 0;
+      G.pressing = false;
+      G.target  = -1;
+    }
+    openDoors();
+  }
+}
+
 function openDoors() {
+  G.doorOpen  = true;
   G.state     = 'door';
-  G.doorTimer = DOOR_TIME;
+  G.doorTimer = 0;   // no auto-close timer; player closes manually
   document.getElementById('elev-car').classList.add('door-open');
-  handleExchange();
-}
-
-function closeDoors() {
-  document.getElementById('elev-car').classList.remove('door-open');
-  G.state    = 'idle';
-  G.dir      = 0;
-  G.pressing = false;
-}
-
-function handleExchange() {
-  // Drop off passengers at this floor
+  document.getElementById('btn-stop').classList.add('door-is-open');
+  document.getElementById('btn-stop').textContent = '關門';
+  // Drop off passengers whose destination is current floor
   G.pax = G.pax.filter(p => {
     if (p.dest !== G.floor) return true;
     G.score++;
@@ -585,8 +660,7 @@ function handleExchange() {
     floatScore('+1', '#38bdf8');
     return false;
   });
-
-  // Board waiting passengers (no direction restriction when player manually opens)
+  // Board waiting passengers
   G.passengers.forEach(p => {
     if (!p.waiting || p.start !== G.floor) return;
     if (G.pax.length >= CAPACITY) return;
@@ -594,6 +668,17 @@ function handleExchange() {
     G.pax.push(p);
     addLog(`上梯 ${p.start + 1}F → ${p.dest + 1}F`, 'info');
   });
+}
+
+function closeDoors() {
+  G.doorOpen = false;
+  document.getElementById('elev-car').classList.remove('door-open');
+  document.getElementById('btn-stop').classList.remove('door-is-open');
+  document.getElementById('btn-stop').textContent = '開門';
+  G.state    = 'idle';
+  G.dir      = 0;
+  G.pressing = false;
+  // No boarding on close — intentional
 }
 
 // ═══════════════════════════════
@@ -698,6 +783,11 @@ function floatScore(text, color) {
 //  LOOP
 // ═══════════════════════════════
 function loop(now) {
+  if (G.paused) {
+    G.lastTime = now;   // reset so dt doesn't spike on resume
+    requestAnimationFrame(loop);
+    return;
+  }
   if (!G.lastTime) G.lastTime = now;
   const dt = Math.min(now - G.lastTime, 80);
   G.lastTime = now;
@@ -732,30 +822,81 @@ bDn.addEventListener('touchstart',  e => { e.preventDefault(); pressDown(true); 
 bDn.addEventListener('touchend',    e => { e.preventDefault(); pressDown(false); }, { passive: false });
 bDn.addEventListener('touchcancel', () => pressDown(false));
 
-// Open/Stop button
-document.getElementById('btn-stop').addEventListener('click', () => doOpenDoor());
+// ── PAUSE helpers ──
+function setPaused(on) {
+  G.paused = on;
+  const tint = document.getElementById('pause-tint');
+  tint.classList.toggle('on', on);
+}
+
+// ── Open/Close door button ──
+document.getElementById('btn-stop').addEventListener('click', () => doToggleDoor());
 document.getElementById('btn-stop').addEventListener('touchend', e => {
-  e.preventDefault(); doOpenDoor();
+  e.preventDefault(); doToggleDoor();
 }, { passive: false });
 
-// Log button toggle
-const btnLog = document.getElementById('btn-log');
+// ── Log button toggle ──
+const btnLog    = document.getElementById('btn-log');
 const logOverlay = document.getElementById('log-overlay');
+const paxOverlay = document.getElementById('pax-overlay');
+
+function closeAllOverlays() {
+  logOverlay.classList.remove('open');
+  paxOverlay.classList.remove('open');
+  btnLog.classList.remove('active');
+  document.getElementById('btn-pax').classList.remove('active');
+  setPaused(false);
+}
+
 function toggleLog() {
-  const isOpen = logOverlay.classList.toggle('open');
-  btnLog.classList.toggle('active', isOpen);
+  const willOpen = !logOverlay.classList.contains('open');
+  closeAllOverlays();
+  if (willOpen) {
+    logOverlay.classList.add('open');
+    btnLog.classList.add('active');
+    setPaused(true);
+  }
 }
 btnLog.addEventListener('click', toggleLog);
-document.getElementById('log-overlay-close').addEventListener('click', toggleLog);
+document.getElementById('log-overlay-close').addEventListener('click', closeAllOverlays);
 
-// Keyboard
+// ── Pax button toggle ──
+const btnPax = document.getElementById('btn-pax');
+function renderPaxOverlay() {
+  const list = document.getElementById('pax-list');
+  if (G.pax.length === 0) {
+    list.innerHTML = '<div id="pax-overlay-empty">電梯內無乘客</div>';
+    return;
+  }
+  list.innerHTML = G.pax.map((p, i) => `
+    <div class="pax-list-row">
+      <span class="pax-list-icon">🧍</span>
+      <span class="pax-list-dest">${p.dest + 1}F</span>
+      <span class="pax-list-label">目的地</span>
+    </div>`).join('');
+}
+function togglePax() {
+  const willOpen = !paxOverlay.classList.contains('open');
+  closeAllOverlays();
+  if (willOpen) {
+    renderPaxOverlay();
+    paxOverlay.classList.add('open');
+    btnPax.classList.add('active');
+    setPaused(true);
+  }
+}
+btnPax.addEventListener('click', togglePax);
+document.getElementById('pax-overlay-close').addEventListener('click', closeAllOverlays);
+
+// ── Keyboard ──
 const keysHeld = new Set();
 document.addEventListener('keydown', ev => {
   if (keysHeld.has(ev.key)) return;
   keysHeld.add(ev.key);
   if (ev.key === 'ArrowUp')   { ev.preventDefault(); pressUp(true); }
   if (ev.key === 'ArrowDown') { ev.preventDefault(); pressDown(true); }
-  if (ev.key === ' ')         { ev.preventDefault(); doOpenDoor(); }
+  if (ev.key === ' ')         { ev.preventDefault(); doToggleDoor(); }
+  if (ev.key === 'Escape')    closeAllOverlays();
 });
 document.addEventListener('keyup', ev => {
   keysHeld.delete(ev.key);
