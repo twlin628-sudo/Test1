@@ -7,31 +7,32 @@
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:      #0b0e18;
-  --bg2:     #121623;
-  --bg3:     #1b2030;
-  --bg4:     #242a3a;
-  --border:  rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.15);
-  --text:    #e6eaf4;
-  --text2:   #7a85a3;
-  --text3:   #434d68;
-  --accent:  #38bdf8;
-  --gold:    #fbbf24;
-  --green:   #34d399;
-  --red:     #f87171;
+  /* Warm concrete + amber industrial palette */
+  --bg:      #1c1710;
+  --bg2:     #231e14;
+  --bg3:     #2d2618;
+  --bg4:     #3a3020;
+  --border:  rgba(255,220,120,0.08);
+  --border2: rgba(255,220,120,0.18);
+  --text:    #f0e8d0;
+  --text2:   #a89870;
+  --text3:   #6b5c3a;
+  --accent:  #f5a623;   /* amber */
+  --amber2:  #c47d0e;
+  --green:   #6fcf97;
+  --red:     #eb5757;
+  --steel:   #8fa8b8;   /* steel blue for elevator */
   --mono: 'Share Tech Mono', monospace;
   --sans: 'Noto Sans TC', sans-serif;
   --phone-w: 390px;
   --phone-h: 844px;
-  /* 5 floors visible → each floor = game-area-h / 5 */
   --floor-h: 88px;
-  --elev-w:  56px;
+  --elev-w:  58px;
   --elev-h:  80px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html {
-  background: #060810;
+  background: #0e0b06;
   display: flex; align-items: center; justify-content: center;
   min-height: 100vh;
 }
@@ -44,8 +45,11 @@ body {
   display: flex; flex-direction: column;
   overflow: hidden;
   position: relative;
-  border-radius: 16px;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 24px 80px rgba(0,0,0,0.8);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px rgba(245,166,35,0.15),
+    0 0 40px rgba(245,166,35,0.06),
+    0 32px 80px rgba(0,0,0,0.9);
 }
 
 /* ── TOPBAR ── */
@@ -53,71 +57,73 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px 10px;
   background: var(--bg2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border2);
   flex-shrink: 0;
+  position: relative;
 }
-#game-title { font-family: var(--mono); font-size: 15px; color: var(--accent); letter-spacing: 2px; }
+#topbar::after {
+  content: '';
+  position: absolute; bottom: 0; left: 16px; right: 16px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245,166,35,0.3), transparent);
+}
+#game-title {
+  font-family: var(--mono); font-size: 14px; color: var(--accent);
+  letter-spacing: 3px; text-transform: uppercase;
+}
 .hstats { display: flex; gap: 8px; }
 .hstat {
   display: flex; flex-direction: column; align-items: center;
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 6px; padding: 4px 12px; min-width: 64px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px; padding: 4px 10px; min-width: 60px;
 }
-.hstat-lbl { font-size: 10px; color: var(--text3); font-family: var(--mono); letter-spacing: 1px; }
-.hstat-val { font-family: var(--mono); font-size: 16px; font-weight: 700; }
-#s-score { color: var(--accent); }
-#s-floors { color: var(--gold); }
-#s-time  { color: var(--text2); font-size: 13px; }
+.hstat-lbl { font-size: 9px; color: var(--text3); font-family: var(--mono); letter-spacing: 1px; }
+.hstat-val { font-family: var(--mono); font-size: 15px; font-weight: 700; }
+#s-score  { color: var(--accent); }
+#s-floors { color: var(--steel); }
+#s-time   { color: var(--text2); font-size: 13px; }
 
 /* ── FLOOR INDICATOR ── */
 #floor-indicator {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 16px;
+  padding: 7px 16px;
   background: var(--bg3);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-#fi-label  { font-size: 11px; color: var(--text3); font-family: var(--mono); }
-#fi-floor  { font-family: var(--mono); font-size: 22px; color: var(--accent); font-weight: 700; }
+#fi-label  { font-size: 10px; color: var(--text3); font-family: var(--mono); letter-spacing: 1px; }
+#fi-floor  { font-family: var(--mono); font-size: 24px; color: var(--accent); font-weight: 700; }
 #fi-pax    { font-family: var(--mono); font-size: 13px; color: var(--text2); }
-#fi-dir    { font-size: 20px; }
+#fi-dir    { font-size: 22px; }
 #fi-state  { font-size: 11px; color: var(--text3); font-family: var(--mono); text-align: right; }
 
 /* ── GAME AREA ── */
-#game-area {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-}
+#game-area { flex: 1; position: relative; overflow: hidden; }
 
 #floors-strip {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%;
+  position: absolute; top: 0; left: 0; width: 100%;
   will-change: transform;
 }
 
 /* ── FLOOR ROW ── */
 .floor-row {
-  width: 100%;
-  height: var(--floor-h);
-  display: flex;
-  align-items: center;
+  width: 100%; height: var(--floor-h);
+  display: flex; align-items: center;
   border-bottom: 1px solid var(--border);
-  position: relative;
-  user-select: none;
-  cursor: pointer;
-  transition: background 0.1s;
+  position: relative; user-select: none; cursor: pointer;
+  transition: background 0.12s;
 }
-.floor-row:active { background: rgba(56,189,248,0.04); }
+.floor-row:active { background: rgba(245,166,35,0.04); }
 .floor-row.is-current {
-  background: rgba(56,189,248,0.07);
-  border-bottom-color: rgba(56,189,248,0.22);
+  background: rgba(245,166,35,0.07);
+  border-bottom-color: rgba(245,166,35,0.25);
+  border-left: 3px solid var(--accent);
 }
 .floor-num {
-  font-family: var(--mono); font-size: 14px; color: var(--text3);
-  width: 34px; text-align: right; padding-right: 6px; flex-shrink: 0;
+  font-family: var(--mono); font-size: 15px; color: var(--text3);
+  width: 36px; text-align: right; padding-right: 6px; flex-shrink: 0;
 }
+.floor-row.is-current .floor-num { color: var(--accent); }
 .floor-arrows {
   width: 20px; flex-shrink: 0;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -125,240 +131,194 @@ body {
 .arr-up   { font-size: 11px; color: var(--green); line-height: 1; }
 .arr-down { font-size: 11px; color: var(--red);   line-height: 1; }
 .floor-pax {
-  flex: 1;
-  display: flex; align-items: center; gap: 5px;
-  padding: 0 8px;
-  overflow: hidden;
+  flex: 1; display: flex; align-items: center; gap: 5px;
+  padding: 0 8px; overflow: hidden;
 }
-.floor-shaft-gap { width: 74px; flex-shrink: 0; }
+.floor-shaft-gap { width: 76px; flex-shrink: 0; }
 
-/* ── PAX ── */
-.pax-fig {
-  display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
-}
-.pax-head { width: 11px; height: 11px; border-radius: 50%; }
-.pax-body { width: 13px; height: 14px; border-radius: 3px 3px 0 0; }
+/* ── PAX FIGURES ── */
+.pax-fig { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.pax-head { width: 10px; height: 10px; border-radius: 50%; background: var(--text2); }
+.pax-body { width: 12px; height: 13px; border-radius: 3px 3px 0 0; background: var(--text2); }
 .pax-dest { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 1px; }
-.pax-normal .pax-head,
-.pax-normal .pax-body { background: var(--accent); }
 
-/* ── ELEVATOR SHAFT (fixed) ── */
+/* ── ELEVATOR SHAFT ── */
 #elev-shaft {
-  position: absolute;
-  right: 10px; top: 0; bottom: 0;
-  width: 66px;
+  position: absolute; right: 10px; top: 0; bottom: 0; width: 68px;
   pointer-events: none;
 }
 #elev-shaft::before {
-  content: '';
-  position: absolute;
-  left: 50%; top: 0; bottom: 0;
-  width: 2px;
-  background: var(--border2);
+  content: ''; position: absolute;
+  left: 50%; top: 0; bottom: 0; width: 3px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--border2) 0px, var(--border2) 8px,
+    transparent 8px, transparent 16px
+  );
   transform: translateX(-50%);
 }
 #elev-car {
-  position: absolute;
-  left: 50%; top: 50%;
+  position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);
-  width: var(--elev-w);
-  height: var(--elev-h);
-  border-radius: 8px;
-  border: 2px solid var(--accent);
-  background: rgba(56,189,248,0.13);
-  color: var(--accent);
+  width: var(--elev-w); height: var(--elev-h);
+  border-radius: 6px;
+  border: 2px solid var(--steel);
+  background: rgba(143,168,184,0.14);
+  color: var(--steel);
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 3px;
+  align-items: center; justify-content: center; gap: 3px;
   pointer-events: all;
-  transition: box-shadow 0.3s;
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
 }
 #elev-car.door-open {
-  box-shadow: 0 0 20px rgba(56,189,248,0.55);
-  border-color: var(--green);
-  color: var(--green);
-  background: rgba(52,211,153,0.13);
-  animation: doorpulse 0.5s;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(245,166,35,0.12);
+  box-shadow: 0 0 18px rgba(245,166,35,0.35), inset 0 1px 0 rgba(255,255,255,0.07);
+  animation: doorpulse 0.4s;
 }
-@keyframes doorpulse { 0%{opacity:0.5} 50%{opacity:1} 100%{opacity:1} }
-#elev-dir { font-size: 16px; line-height: 1; }
-#elev-id  { font-family: var(--mono); font-size: 12px; font-weight: 700; opacity: 0.9; }
-#elev-cnt { font-family: var(--mono); font-size: 11px; opacity: 0.8; }
+@keyframes doorpulse { 0%{opacity:0.5} 60%{opacity:1} 100%{opacity:1} }
+#elev-dir { font-size: 15px; line-height: 1; }
+#elev-id  { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+#elev-cnt { font-family: var(--mono); font-size: 10px; opacity: 0.75; }
 
-/* ── LOG overlay panel ── */
-#log-overlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
+/* ── OVERLAY SHARED ── */
+.game-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
   background: var(--bg2);
   border-top: 1px solid var(--border2);
-  z-index: 30;
-  display: none;
-  flex-direction: column;
-  max-height: 55%;
-  border-radius: 14px 14px 0 0;
-  overflow: hidden;
+  z-index: 30; display: none; flex-direction: column;
+  max-height: 56%; border-radius: 16px 16px 0 0; overflow: hidden;
 }
-#log-overlay.open { display: flex; }
-#log-overlay-header {
+.game-overlay.open { display: flex; }
+.overlay-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px 8px;
+  padding: 11px 16px 9px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-#log-overlay-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 2px; }
-#log-overlay-close { font-size: 14px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 0 4px; }
+.overlay-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 2px; }
+.overlay-close {
+  font-size: 15px; color: var(--text3); background: none; border: none;
+  cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  transition: color 0.1s, background 0.1s;
+}
+.overlay-close:active { background: var(--bg3); color: var(--text); }
+
+/* log list */
 #log-list {
-  overflow-y: auto; padding: 8px 12px 12px;
-  display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto; padding: 8px 14px 14px;
+  display: flex; flex-direction: column; gap: 5px;
 }
 #log-list::-webkit-scrollbar { width: 3px; }
 #log-list::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
 .log-pill {
   font-family: var(--mono); font-size: 12px;
-  padding: 5px 10px; border-radius: 6px;
-  width: fit-content;
+  padding: 5px 10px; border-radius: 5px; width: fit-content;
 }
-.log-good { background: rgba(52,211,153,0.15); color: var(--green); }
-.log-gold { background: rgba(251,191,36,0.15); color: var(--gold); }
-.log-info { background: rgba(56,189,248,0.12); color: var(--accent); }
+.log-good { background: rgba(111,207,151,0.13); color: var(--green); }
+.log-gold { background: rgba(245,166,35,0.13);  color: var(--accent); }
+.log-info { background: rgba(143,168,184,0.13); color: var(--steel); }
+
+/* pax list */
+#pax-list {
+  overflow-y: auto; padding: 12px 14px 16px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.pax-list-row {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 14px;
+  padding: 8px 12px;
+  background: var(--bg3); border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.pax-list-icon { font-size: 15px; opacity: 0.7; }
+.pax-list-dest { color: var(--accent); font-weight: 700; font-size: 17px; }
+.pax-list-label { color: var(--text3); font-size: 11px; }
+#pax-overlay-empty {
+  font-family: var(--mono); font-size: 13px; color: var(--text3);
+  text-align: center; padding: 24px;
+}
+
+/* ── PAUSE TINT ── */
+#pause-tint {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 25; display: none;
+  align-items: center; justify-content: center;
+}
+#pause-tint.on { display: flex; }
+#pause-label {
+  font-family: var(--mono); font-size: 12px;
+  color: rgba(245,166,35,0.4); letter-spacing: 4px;
+}
 
 /* ── CONTROLS ── */
 #controls {
   flex-shrink: 0;
   background: var(--bg2);
-  border-top: 1px solid var(--border);
-  padding: 14px 16px 24px;   /* more top padding so buttons sit higher */
-  display: flex; flex-direction: column; gap: 10px;
+  border-top: 1px solid var(--border2);
+  /* Key fix: padding-bottom keeps buttons away from iPhone home bar
+     but doesn't push them too close to the bottom edge */
+  padding: 10px 14px 14px;
+  display: flex; flex-direction: column; gap: 8px;
 }
-#ctrl-row {
-  display: flex; gap: 10px;
-}
-.ctrl-btn {
-  flex: 1;
-  height: 68px;
-  border-radius: 12px;
-  border: 2px solid;
-  font-family: var(--mono);
-  font-size: 30px;
-  cursor: pointer;
-  background: transparent;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.1s, transform 0.08s;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none;
-}
-.ctrl-btn:active { transform: scale(0.93); }
-#btn-up   { border-color: var(--green); color: var(--green); }
-#btn-up.active   { background: rgba(52,211,153,0.2); }
-#btn-down { border-color: var(--red);   color: var(--red); }
-#btn-down.active { background: rgba(248,113,113,0.2); }
 
-#action-row {
-  display: flex; gap: 10px;
-}
+/* action row: log + pax + door */
+#action-row { display: flex; gap: 8px; }
 #btn-log, #btn-pax {
-  height: 52px; width: 72px; flex-shrink: 0;
-  border-radius: 10px;
-  border: 2px solid var(--border2);
-  color: var(--text2);
-  background: transparent;
-  font-family: var(--mono);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  height: 48px; width: 68px; flex-shrink: 0;
+  border-radius: 9px;
+  border: 1.5px solid var(--border2);
+  color: var(--text3); background: var(--bg3);
+  font-family: var(--mono); font-size: 11px;
+  cursor: pointer; line-height: 1.3;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
-  line-height: 1.3;
 }
-#btn-log.active {
-  border-color: var(--gold);
-  color: var(--gold);
-  background: rgba(251,191,36,0.1);
-}
-#btn-pax.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(56,189,248,0.1);
-}
-#btn-log:active, #btn-pax:active { background: var(--bg3); }
+#btn-log.active  { border-color: var(--accent); color: var(--accent); background: rgba(245,166,35,0.1); }
+#btn-pax.active  { border-color: var(--steel);  color: var(--steel);  background: rgba(143,168,184,0.1); }
+#btn-log:active, #btn-pax:active { opacity: 0.7; }
+
 #btn-stop {
-  flex: 1;
-  height: 52px;
-  border-radius: 10px;
-  border: 2px solid var(--accent);
-  color: var(--accent);
-  background: rgba(56,189,248,0.08);
-  font-family: var(--mono);
-  font-size: 16px;
-  cursor: pointer;
-  letter-spacing: 1px;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  flex: 1; height: 48px;
+  border-radius: 9px;
+  border: 1.5px solid var(--amber2);
+  color: var(--accent); background: rgba(245,166,35,0.1);
+  font-family: var(--mono); font-size: 16px; font-weight: 700;
+  cursor: pointer; letter-spacing: 1px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 #btn-stop.door-is-open {
   border-color: var(--green);
   color: var(--green);
-  background: rgba(52,211,153,0.1);
+  background: rgba(111,207,151,0.1);
 }
-#btn-stop:active { opacity: 0.75; }
+#btn-stop:active { opacity: 0.7; }
+
+/* up / down row */
+#ctrl-row { display: flex; gap: 8px; }
+.ctrl-btn {
+  flex: 1; height: 64px;
+  border-radius: 12px; border: 2px solid;
+  font-family: var(--mono); font-size: 28px;
+  cursor: pointer; background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, transform 0.07s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.ctrl-btn:active { transform: scale(0.94); }
+#btn-up   { border-color: var(--green); color: var(--green); }
+#btn-up.active   { background: rgba(111,207,151,0.15); }
+#btn-down { border-color: var(--red); color: var(--red); }
+#btn-down.active { background: rgba(235,87,87,0.15); }
 
 .ctrl-hint {
-  font-size: 11px; color: var(--text3);
-  font-family: var(--mono); text-align: center;
-}
-
-/* ── PAX overlay panel (elevator interior) ── */
-#pax-overlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: var(--bg2);
-  border-top: 1px solid var(--border2);
-  z-index: 30;
-  display: none;
-  flex-direction: column;
-  max-height: 55%;
-  border-radius: 14px 14px 0 0;
-  overflow: hidden;
-}
-#pax-overlay.open { display: flex; }
-#pax-overlay-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px 8px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-#pax-overlay-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 2px; }
-#pax-overlay-close { font-size: 14px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 0 4px; }
-#pax-list {
-  overflow-y: auto; padding: 12px 14px 14px;
-  display: flex; flex-direction: column; gap: 6px;
-}
-.pax-list-row {
-  display: flex; align-items: center; gap: 10px;
-  font-family: var(--mono); font-size: 14px;
-  padding: 7px 10px;
-  background: var(--bg3); border-radius: 7px;
-  border: 1px solid var(--border);
-}
-.pax-list-icon { font-size: 16px; }
-.pax-list-dest { color: var(--accent); font-weight: 700; font-size: 16px; }
-.pax-list-label { color: var(--text2); font-size: 12px; }
-#pax-overlay-empty {
-  font-family: var(--mono); font-size: 13px; color: var(--text3);
-  text-align: center; padding: 20px;
-}
-
-/* ── pause overlay tint ── */
-#pause-tint {
-  position: absolute; inset: 0;
-  background: rgba(0,0,0,0.35);
-  z-index: 25;
-  display: none;
-  align-items: center; justify-content: center;
-}
-#pause-tint.on { display: flex; }
-#pause-label {
-  font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,0.35);
-  letter-spacing: 3px;
+  font-size: 10px; color: var(--text3);
+  font-family: var(--mono); text-align: center; letter-spacing: 0.5px;
 }
 
 /* ── FLOAT SCORE ── */
@@ -370,7 +330,7 @@ body {
 }
 @keyframes floatUp {
   0%   { opacity:1; transform:translateY(0) scale(1); }
-  100% { opacity:0; transform:translateY(-52px) scale(0.8); }
+  100% { opacity:0; transform:translateY(-50px) scale(0.8); }
 }
 </style>
 </head>
@@ -420,19 +380,19 @@ body {
   </div>
 
   <!-- Log overlay panel -->
-  <div id="log-overlay">
-    <div id="log-overlay-header">
-      <div id="log-overlay-title">RECORD</div>
-      <button id="log-overlay-close">✕</button>
+  <div id="log-overlay" class="game-overlay">
+    <div class="overlay-header">
+      <div class="overlay-title">RECORD</div>
+      <button id="log-overlay-close" class="overlay-close">✕</button>
     </div>
     <div id="log-list"></div>
   </div>
 
   <!-- Pax overlay panel -->
-  <div id="pax-overlay">
-    <div id="pax-overlay-header">
-      <div id="pax-overlay-title">電梯乘客</div>
-      <button id="pax-overlay-close">✕</button>
+  <div id="pax-overlay" class="game-overlay">
+    <div class="overlay-header">
+      <div class="overlay-title">電梯乘客</div>
+      <button id="pax-overlay-close" class="overlay-close">✕</button>
     </div>
     <div id="pax-list"></div>
   </div>
@@ -441,18 +401,18 @@ body {
   <div id="pause-tint" class=""><div id="pause-label">PAUSED</div></div>
 </div>
 
-<!-- CONTROLS -->
+<!-- CONTROLS: ▲▼ on top, action row below — keeps hands away from home bar -->
 <div id="controls">
+  <div id="ctrl-row">
+    <button class="ctrl-btn" id="btn-up">▲</button>
+    <button class="ctrl-btn" id="btn-down">▼</button>
+  </div>
   <div id="action-row">
     <button id="btn-log">📋<br>紀錄</button>
     <button id="btn-pax">🧍<br>乘客</button>
     <button id="btn-stop">開門</button>
   </div>
-  <div id="ctrl-row">
-    <button class="ctrl-btn" id="btn-up">▲</button>
-    <button class="ctrl-btn" id="btn-down">▼</button>
-  </div>
-  <div class="ctrl-hint">按住 ▲▼ 移動 · 按開門/關門上下客</div>
+  <div class="ctrl-hint">按住 ▲▼ 移動 · 開門/關門上下客 · 紀錄/乘客暫停遊戲</div>
 </div>
 
 <script>
