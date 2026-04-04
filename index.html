@@ -507,7 +507,7 @@ const DOOR_TIME  = 900;
 
 // Game time: 1 real second = 2 game minutes. Day = 24 game-hours = 12 real minutes.
 // Loops endlessly. Active window 07:00–22:00 (=15 hrs = 450 game-min).
-const REAL_MS_PER_GAME_MIN = 500; // 1 real second = 2 game minutes
+const REAL_MS_PER_GAME_MIN = 1000; // 1 real second = 2 game minutes
 const DAY_MINS = 1440; // 24 * 60
 
 // ── FLOOR DEFINITIONS ──
@@ -867,7 +867,7 @@ function spawnPax(now) {
   if (total <= 0) return; // nobody out at this hour
 
   // Base interval: lighter at night, busier at peak
-  const baseInterval = 2200;
+  const baseInterval = 10000;
   const peakMult = Math.max(0.4, 1 - total * 0.5);
   const interval = baseInterval * peakMult;
 
