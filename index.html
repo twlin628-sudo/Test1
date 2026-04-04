@@ -393,7 +393,30 @@ body::before {
   padding-bottom: 4px;
 }
 
-/* ── DAILY REPORT OVERLAY ── */
+/* ── IN-CAR DESTINATION STRIP ── */
+#dest-strip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 14px;
+  background: #fff0ff;
+  border-bottom: 2px solid var(--border);
+  flex-shrink: 0; position: relative; z-index: 1;
+  min-height: 34px;
+  flex-wrap: wrap;
+}
+#dest-strip-label {
+  font-size: 10px; font-weight: 800; color: var(--text3);
+  white-space: nowrap; flex-shrink: 0;
+}
+.dest-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 900;
+  white-space: nowrap; flex-shrink: 0;
+  border: 2px solid;
+}
+#dest-strip-empty {
+  font-size: 10px; color: var(--text3); font-weight: 700;
+}
 #report-overlay {
   position: absolute; inset: 0;
   background: rgba(60,10,100,0.55);
@@ -456,6 +479,12 @@ body::before {
     <div id="fi-pax">0 / 10 人</div>
     <div id="fi-state">待機中</div>
   </div>
+</div>
+
+<!-- IN-CAR DESTINATION STRIP -->
+<div id="dest-strip">
+  <div id="dest-strip-label">車內→</div>
+  <div id="dest-strip-empty">空車</div>
 </div>
 
 <!-- TIME BAR -->
@@ -1143,6 +1172,52 @@ function renderAll() {
 
   // Time bar
   renderTimebar();
+
+  // In-car destination strip
+  renderDestStrip();
+}
+
+function renderDestStrip() {
+  const strip = document.getElementById('dest-strip');
+  const empty = document.getElementById('dest-strip-empty');
+
+  // Remove old chips (keep label and empty div)
+  strip.querySelectorAll('.dest-chip').forEach(c => c.remove());
+
+  if (G.pax.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Group by destination floor, count per floor
+  const groups = {};
+  G.pax.forEach(p => {
+    if (!groups[p.dest]) groups[p.dest] = { count: 0, type: p.type };
+    groups[p.dest].count++;
+    // Escalate type: celeb > vip > others
+    const rank = { celeb:4, vip:3, doctor:2, elderly:2, child:2, tourist:2, delivery:1, normal:0 };
+    if ((rank[p.type]||0) > (rank[groups[p.dest].type]||0)) groups[p.dest].type = p.type;
+  });
+
+  // Sort by floor number ascending
+  Object.entries(groups)
+    .sort(([a],[b]) => +a - +b)
+    .forEach(([f, info]) => {
+      const fIdx = +f;
+      const def  = FLOOR_DEFS[fIdx];
+      const pt   = PAX_TYPES[info.type] || PAX_TYPES.normal;
+      const chip = document.createElement('div');
+      chip.className = 'dest-chip';
+      chip.style.background = def ? def.color : '#f0e8ff';
+      chip.style.color       = def ? def.tc    : '#6030a0';
+      chip.style.borderColor = def ? def.tc    : '#c097f0';
+      chip.innerHTML =
+        `${def ? def.emoji : ''}` +
+        `<span>${fIdx + 1}F</span>` +
+        (info.count > 1 ? `<span style="opacity:0.7">×${info.count}</span>` : '');
+      strip.appendChild(chip);
+    });
 }
 
 // ═══════════════════════════════
