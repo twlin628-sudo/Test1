@@ -867,7 +867,7 @@ function spawnPax(now) {
   if (total <= 0) return; // nobody out at this hour
 
   // Base interval: lighter at night, busier at peak
-  const baseInterval = 10000;
+  const baseInterval = 65000;
   const peakMult = Math.max(0.4, 1 - total * 0.5);
   const interval = baseInterval * peakMult;
 
