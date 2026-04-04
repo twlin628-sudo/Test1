@@ -280,6 +280,7 @@ body::before {
 .log-good { background: #e8fff2; color: #2a9e5c; border: 1.5px solid #b0ecd0; }
 .log-gold { background: #fff8e0; color: #b87c00; border: 1.5px solid #ffe080; }
 .log-info { background: #f0e8ff; color: #8040c0; border: 1.5px solid #d8b8ff; }
+.log-vip  { background: #fff0fa; color: #c0207a; border: 1.5px solid #f8b8e0; }
 
 #pax-list {
   overflow-y: auto; padding: 12px 16px 16px;
@@ -392,6 +393,23 @@ body::before {
   padding-bottom: 4px;
 }
 
+/* ── DAILY REPORT OVERLAY ── */
+#report-overlay {
+  position: absolute; inset: 0;
+  background: rgba(60,10,100,0.55);
+  z-index: 50; display: none;
+  align-items: flex-end; justify-content: center;
+}
+#report-overlay.open { display: flex; }
+#report-box {
+  width: 100%; max-height: 90%;
+  background: var(--bg2);
+  border-radius: 24px 24px 0 0;
+  border-top: 3px solid #e0b8ff;
+  overflow-y: auto;
+  box-shadow: 0 -8px 32px rgba(180,80,240,0.25);
+}
+
 /* ── FLOAT SCORE ── */
 .float-score {
   position: fixed; pointer-events: none;
@@ -477,6 +495,13 @@ body::before {
     <div id="pax-list"></div>
   </div>
 
+  <!-- Daily Report overlay -->
+  <div id="report-overlay">
+    <div id="report-box">
+      <div id="report-body"></div>
+    </div>
+  </div>
+
   <!-- Pause tint -->
   <div id="pause-tint" class=""><div id="pause-label">PAUSED</div></div>
 </div>
@@ -503,86 +528,136 @@ const NUM_FLOORS = 20;
 const CAPACITY   = 10;
 const FLOOR_H    = 88;
 const SPEED      = FLOOR_H * 2.4;
-const DOOR_TIME  = 900;
 
-// Game time: 1 real second = 2 game minutes. Day = 24 game-hours = 12 real minutes.
-// Loops endlessly. Active window 07:00–22:00 (=15 hrs = 450 game-min).
-const REAL_MS_PER_GAME_MIN = 1000; // 1 real second = 2 game minutes
-const DAY_MINS = 1440; // 24 * 60
+const REAL_MS_PER_GAME_MIN = 1000; // 1 real sec = 1 game min
+const DAY_START = 7 * 60;   // 07:00
+const DAY_END   = 24 * 60;  // 24:00 (midnight = end of day)
 
-// ── FLOOR DEFINITIONS ──
-// index 0 = floor 1 (ground), index 19 = floor 20
+// ── FLOOR DEFINITIONS (all 20 floors) ──
 const FLOOR_DEFS = {
-   0: { name:'大廳',   emoji:'🚪', color:'#ffe0f0', tc:'#c0407a' },
-   2: { name:'便利商店',emoji:'🏪', color:'#fff3cd', tc:'#8b6914' },
-   4: { name:'餐廳',   emoji:'🍜', color:'#ffe8d0', tc:'#c05800' },
-   7: { name:'健身房', emoji:'💪', color:'#d8f5e8', tc:'#277a4e' },
-   9: { name:'辦公室A',emoji:'💼', color:'#ddeeff', tc:'#2255aa' },
-  14: { name:'辦公室B',emoji:'📋', color:'#e8e0ff', tc:'#5533bb' },
-  19: { name:'展望台', emoji:'🌆', color:'#fff0d0', tc:'#aa6600' },
+   0: { name:'大廳',    emoji:'🚪', color:'#ffe0f0', tc:'#c0407a' },
+   1: { name:'便利商店',emoji:'🏪', color:'#fff3cd', tc:'#8b6914' },
+   2: { name:'咖啡廳',  emoji:'☕', color:'#f5e6d0', tc:'#7b4a1a' },
+   3: { name:'藥局',    emoji:'💊', color:'#e8f5e9', tc:'#2e7d32' },
+   4: { name:'餐廳',    emoji:'🍜', color:'#ffe8d0', tc:'#c05800' },
+   5: { name:'書店',    emoji:'📚', color:'#e8f0ff', tc:'#3355bb' },
+   6: { name:'美容院',  emoji:'💇', color:'#fce4ec', tc:'#c2185b' },
+   7: { name:'健身房',  emoji:'💪', color:'#d8f5e8', tc:'#277a4e' },
+   8: { name:'托兒所',  emoji:'🧒', color:'#fff9c4', tc:'#f9a825' },
+   9: { name:'辦公室A', emoji:'💼', color:'#ddeeff', tc:'#2255aa' },
+  10: { name:'會議室',  emoji:'📊', color:'#ede7f6', tc:'#6a1b9a' },
+  11: { name:'醫療室',  emoji:'🏥', color:'#e0f7fa', tc:'#00838f' },
+  12: { name:'法律事務所',emoji:'⚖️',color:'#fbe9e7', tc:'#bf360c' },
+  13: { name:'設計工作室',emoji:'🎨',color:'#f8f0ff', tc:'#7b1fa2' },
+  14: { name:'辦公室B', emoji:'📋', color:'#e8e0ff', tc:'#5533bb' },
+  15: { name:'研究室',  emoji:'🔬', color:'#e8f5e9', tc:'#1b5e20' },
+  16: { name:'主管室',  emoji:'🏆', color:'#fff8e1', tc:'#e65100' },
+  17: { name:'休息區',  emoji:'🛋️', color:'#fce4ec', tc:'#880e4f' },
+  18: { name:'天空餐廳',emoji:'🌅', color:'#e3f2fd', tc:'#0d47a1' },
+  19: { name:'展望台',  emoji:'🌆', color:'#fff0d0', tc:'#aa6600' },
 };
 
-// ── SPAWN RULES per floor ──
-// Each entry: { floorIdx, destFloorIdx or destFn, minHour, maxHour, weightFn(hour) }
-// weightFn returns 0..1 relative spawn weight at given game hour
-function lobbyWeight(h) {
-  // high all day, peak 8-9 and 17-19
-  if (h >= 8 && h <= 9)  return 1.0;
-  if (h >= 17 && h <= 19) return 1.0;
-  if (h >= 7 && h <= 22) return 0.45;
-  return 0;
-}
-function convenienceWeight(h) { return (h >= 7 && h <= 22) ? 0.3 : 0; }
-function restaurantWeight(h) {
-  if (h >= 12 && h <= 13) return 1.0;
-  if (h >= 18 && h <= 19) return 0.7;
-  return 0.05;
-}
-function gymWeight(h) {
-  if (h >= 7 && h <= 9)   return 0.9;
-  if (h >= 18 && h <= 20) return 0.9;
-  return 0.1;
-}
-function officeAWeight(h) {
-  if (h >= 8 && h <= 10)  return 1.0;  // arrive
-  if (h >= 17 && h <= 19) return 1.0;  // leave
-  if (h >= 10 && h <= 17) return 0.15; // mid-day trickle
-  return 0;
-}
-function officeBWeight(h) {
-  if (h >= 9 && h <= 10)  return 0.7;
-  if (h >= 18 && h <= 19) return 0.7;
-  if (h >= 10 && h <= 18) return 0.1;
-  return 0;
-}
-function observatoryWeight(h) {
-  if (h >= 10 && h <= 20) return 0.25;
-  return 0;
+// ── PASSENGER TYPES ──
+const PAX_TYPES = {
+  normal:  { emoji:'🧍', label:'一般',    scoreBonus:0,  color:'#c97bff', headC:'#ff7eb3', bodyC:'#c97bff', rare: false },
+  vip:     { emoji:'⭐', label:'VIP',     scoreBonus:2,  color:'#f5a623', headC:'#ffd166', bodyC:'#f5a623', rare: false },
+  tourist: { emoji:'📸', label:'觀光客',  scoreBonus:1,  color:'#74b9ff', headC:'#74b9ff', bodyC:'#0984e3', rare: false },
+  elderly: { emoji:'👴', label:'長者',    scoreBonus:1,  color:'#a8e6cf', headC:'#a8e6cf', bodyC:'#55a87e', rare: false },
+  child:   { emoji:'👧', label:'小朋友',  scoreBonus:1,  color:'#fdcb6e', headC:'#fdcb6e', bodyC:'#e17055', rare: false },
+  celeb:   { emoji:'🌟', label:'名人',    scoreBonus:5,  color:'#fd79a8', headC:'#fd79a8', bodyC:'#e84393', rare: true  },
+  delivery:{ emoji:'📦', label:'外送員',  scoreBonus:1,  color:'#55efc4', headC:'#55efc4', bodyC:'#00b894', rare: false },
+  doctor:  { emoji:'👨‍⚕️',label:'醫生',  scoreBonus:2,  color:'#81ecec', headC:'#81ecec', bodyC:'#00cec9', rare: false },
+};
+
+// ── SPAWN WEIGHT FUNCTIONS ──
+const w = {
+  lobby:    h => (h>=8&&h<=9)||( h>=17&&h<=19) ? 1.0 : (h>=7&&h<=23) ? 0.4 : 0,
+  cafe:     h => (h>=7&&h<=10)||(h>=14&&h<=16) ? 0.7 : (h>=7&&h<=22) ? 0.2 : 0,
+  conv:     h => (h>=7&&h<=23) ? 0.3 : 0.05,
+  pharmacy: h => (h>=9&&h<=20) ? 0.25 : 0,
+  rest:     h => (h>=12&&h<=13) ? 1.0 : (h>=18&&h<=19) ? 0.8 : (h>=19&&h<=21) ? 0.4 : 0.05,
+  book:     h => (h>=10&&h<=20) ? 0.3 : 0,
+  salon:    h => (h>=10&&h<=19) ? 0.35 : 0,
+  gym:      h => (h>=6&&h<=9)||(h>=18&&h<=21) ? 0.9 : 0.1,
+  daycare:  h => (h>=8&&h<=9)||(h>=17&&h<=18) ? 0.8 : (h>=9&&h<=17) ? 0.1 : 0,
+  offA:     h => (h>=8&&h<=10) ? 1.0 : (h>=17&&h<=19) ? 1.0 : (h>=10&&h<=17) ? 0.2 : 0,
+  meeting:  h => (h>=9&&h<=17) ? 0.5 : 0,
+  medical:  h => (h>=9&&h<=17) ? 0.4 : 0,
+  law:      h => (h>=9&&h<=18) ? 0.3 : 0,
+  design:   h => (h>=10&&h<=19) ? 0.3 : 0,
+  offB:     h => (h>=9&&h<=10) ? 0.7 : (h>=18&&h<=19) ? 0.7 : (h>=10&&h<=18) ? 0.15 : 0,
+  lab:      h => (h>=8&&h<=20) ? 0.25 : 0,
+  exec:     h => (h>=9&&h<=18) ? 0.2 : 0,
+  lounge:   h => (h>=12&&h<=21) ? 0.35 : 0,
+  skyrest:  h => (h>=11&&h<=22) ? 0.45 : 0,
+  obs:      h => (h>=10&&h<=21) ? 0.3 : 0,
+  night:    h => (h>=22||h<7)   ? 0.1 : 0,
+};
+
+// Which type of pax spawns at which floor
+const FLOOR_PAX_TYPE = {
+   0: ['normal','normal','normal','vip','delivery'],
+   1: ['normal','normal','delivery'],
+   2: ['normal','normal','elderly'],
+   3: ['normal','elderly','doctor'],
+   4: ['normal','normal','normal','tourist'],
+   5: ['normal','child','elderly'],
+   6: ['normal','vip'],
+   7: ['normal','normal'],
+   8: ['normal','child','child'],
+   9: ['normal','normal','vip','doctor'],
+  10: ['normal','normal','vip'],
+  11: ['normal','doctor','elderly'],
+  12: ['normal','vip'],
+  13: ['normal','normal'],
+  14: ['normal','normal','vip'],
+  15: ['normal','doctor'],
+  16: ['vip','vip','celeb'],
+  17: ['normal','elderly'],
+  18: ['normal','vip','tourist'],
+  19: ['tourist','tourist','normal','celeb'],
+};
+
+function pickPaxType(floorIdx) {
+  const pool = FLOOR_PAX_TYPE[floorIdx] || ['normal'];
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// Spawn pool entry: {srcFloor, destFloor(-1=random), weightFn}
+// SPAWN POOL: { src, dest, w(h), type override or null }
 const SPAWN_POOL = [
-  // Lobby → various offices & amenities (morning rush)
-  { src:0,  dest:-1,        w: lobbyWeight },
-  // Convenience store: random floors, steady
-  { src:2,  dest:-1,        w: convenienceWeight },
-  // Restaurant: people come from all floors at lunch/dinner
-  { src:-1, dest:4,         w: restaurantWeight },
-  // Gym: morning & evening
-  { src:0,  dest:7,         w: gymWeight },
-  { src:7,  dest:0,         w: gymWeight },
-  // Office A arrive (from lobby) / leave (to lobby)
-  { src:0,  dest:9,         w: h => officeAWeight(h) > 0.5 && h < 14 ? officeAWeight(h) : 0 },
-  { src:9,  dest:0,         w: h => officeAWeight(h) > 0.5 && h >= 14 ? officeAWeight(h) : 0 },
-  { src:9,  dest:-1,        w: h => officeAWeight(h) * 0.3 }, // office internal movement
-  // Office B arrive/leave
-  { src:0,  dest:14,        w: h => officeBWeight(h) > 0.3 && h < 14 ? officeBWeight(h) : 0 },
-  { src:14, dest:0,         w: h => officeBWeight(h) > 0.3 && h >= 14 ? officeBWeight(h) : 0 },
-  // Observatory: tourists going up / coming down
-  { src:0,  dest:19,        w: observatoryWeight },
-  { src:19, dest:0,         w: observatoryWeight },
-  // Generic random movement (background noise)
-  { src:-1, dest:-1,        w: h => (h >= 7 && h <= 22) ? 0.15 : 0 },
+  { src:0,  dest:-1, wf: w.lobby },
+  { src:1,  dest:-1, wf: w.conv },
+  { src:2,  dest:-1, wf: w.cafe },
+  { src:3,  dest:-1, wf: w.pharmacy },
+  { src:-1, dest:4,  wf: w.rest },
+  { src:4,  dest:-1, wf: h => w.rest(h) * 0.4 },
+  { src:5,  dest:-1, wf: w.book },
+  { src:6,  dest:-1, wf: w.salon },
+  { src:0,  dest:7,  wf: w.gym },
+  { src:7,  dest:0,  wf: w.gym },
+  { src:8,  dest:0,  wf: w.daycare },
+  { src:0,  dest:8,  wf: w.daycare },
+  { src:0,  dest:9,  wf: h => w.offA(h) > 0.5 && h < 14 ? w.offA(h) : 0 },
+  { src:9,  dest:0,  wf: h => w.offA(h) > 0.5 && h >= 14 ? w.offA(h) : 0 },
+  { src:9,  dest:-1, wf: h => w.offA(h) * 0.3 },
+  { src:-1, dest:10, wf: w.meeting },
+  { src:10, dest:-1, wf: h => w.meeting(h) * 0.5 },
+  { src:-1, dest:11, wf: w.medical },
+  { src:11, dest:0,  wf: w.medical },
+  { src:-1, dest:12, wf: w.law },
+  { src:-1, dest:13, wf: w.design },
+  { src:0,  dest:14, wf: h => w.offB(h) > 0.3 && h < 14 ? w.offB(h) : 0 },
+  { src:14, dest:0,  wf: h => w.offB(h) > 0.3 && h >= 14 ? w.offB(h) : 0 },
+  { src:-1, dest:15, wf: w.lab },
+  { src:15, dest:-1, wf: h => w.lab(h) * 0.3 },
+  { src:-1, dest:16, wf: w.exec },
+  { src:16, dest:-1, wf: h => w.exec(h) * 0.5 },
+  { src:-1, dest:17, wf: w.lounge },
+  { src:-1, dest:18, wf: w.skyrest },
+  { src:18, dest:0,  wf: h => w.skyrest(h) * 0.6 },
+  { src:0,  dest:19, wf: w.obs },
+  { src:19, dest:0,  wf: w.obs },
+  { src:-1, dest:-1, wf: h => (h>=7&&h<=23) ? 0.12 : w.night(h) },
 ];
 
 // ═══════════════════════════════
@@ -592,30 +667,26 @@ let G = {};
 
 function initState() {
   G = {
-    floor:      0,
-    pixelY:     0,
-    dir:        0,
-    pressing:   false,
-    state:      'idle',
-    doorTimer:  0,
-    target:     -1,
-    pax:        [],
-
-    score:        0,
-    floorsCount:  0,
-    elapsed:      0,   // real ms
-    lastTime:     null,
-    passengers:   [],
-    spawnTimer:   0,   // real ms timestamp of last spawn
-    uid:          0,
-    logs:         [],
-
+    floor: 0, pixelY: 0, dir: 0, pressing: false,
+    state: 'idle', target: -1, pax: [],
+    score: 0, floorsCount: 0,
+    elapsed: 0, lastTime: null,
+    passengers: [], spawnTimer: 0, uid: 0, logs: [],
     lastCountedFloor: 0,
-    paused:   false,
-    doorOpen: false,
+    paused: false, doorOpen: false,
+    gameMins: DAY_START,  // start at 07:00
+    dayEnded: false,
 
-    // Time system
-    gameMins: 7 * 60,  // start at 07:00
+    // Daily stats
+    daily: {
+      delivered: 0,
+      byType: {},       // { normal:N, vip:N, ... }
+      byFloor: {},      // { 0: N, 1: N, ... }  (destination floor)
+      bonusScore: 0,
+      peakHour: { h: 7, count: 0 },
+      hourlyCount: new Array(24).fill(0),
+      floorsCount: 0,
+    },
   };
 }
 
@@ -770,25 +841,36 @@ function doToggleDoor() {
 function openDoors() {
   G.doorOpen  = true;
   G.state     = 'door';
-  G.doorTimer = 0;   // no auto-close timer; player closes manually
   document.getElementById('elev-car').classList.add('door-open');
   document.getElementById('btn-stop').classList.add('door-is-open');
   document.getElementById('btn-stop').textContent = '關門';
-  // Drop off passengers whose destination is current floor
+
+  // Drop off passengers at this floor
   G.pax = G.pax.filter(p => {
     if (p.dest !== G.floor) return true;
-    G.score++;
-    addLog(`到達 ${G.floor + 1}F  +1分`, 'good');
-    floatScore('+1', '#38bdf8');
+    const pt = PAX_TYPES[p.type] || PAX_TYPES.normal;
+    const pts = 1 + pt.scoreBonus;
+    G.score += pts;
+    G.daily.delivered++;
+    G.daily.byType[p.type] = (G.daily.byType[p.type] || 0) + 1;
+    G.daily.byFloor[p.dest] = (G.daily.byFloor[p.dest] || 0) + 1;
+    G.daily.bonusScore += pt.scoreBonus;
+    const h = Math.floor(G.gameMins / 60);
+    G.daily.hourlyCount[h]++;
+    const logLabel = pt.scoreBonus > 0 ? `${pt.emoji}${pt.label}到達 ${G.floor+1}F +${pts}分` : `到達 ${G.floor+1}F +1分`;
+    addLog(logLabel, pt.scoreBonus >= 5 ? 'gold' : pt.scoreBonus > 0 ? 'vip' : 'good');
+    floatScore(`+${pts}`, pt.scoreBonus >= 5 ? '#f5a623' : pt.scoreBonus > 0 ? '#c97bff' : '#5cce8a');
     return false;
   });
+
   // Board waiting passengers
   G.passengers.forEach(p => {
     if (!p.waiting || p.start !== G.floor) return;
     if (G.pax.length >= CAPACITY) return;
     p.waiting = false;
     G.pax.push(p);
-    addLog(`上梯 ${p.start + 1}F → ${p.dest + 1}F`, 'info');
+    const pt = PAX_TYPES[p.type] || PAX_TYPES.normal;
+    addLog(`${pt.emoji}上梯 ${p.start+1}F→${p.dest+1}F`, 'info');
   });
 }
 
@@ -807,9 +889,15 @@ function closeDoors() {
 //  TIME SYSTEM
 // ═══════════════════════════════
 function updateGameTime(dt) {
-  // Advance game time; loop endlessly
+  if (G.dayEnded) return;
   const minsElapsed = dt / REAL_MS_PER_GAME_MIN;
-  G.gameMins = (G.gameMins + minsElapsed) % DAY_MINS;
+  G.gameMins += minsElapsed;
+  if (G.gameMins >= DAY_END) {
+    G.gameMins = DAY_END;
+    G.dayEnded = true;
+    G.daily.floorsCount = G.floorsCount;
+    showDailyReport();
+  }
 }
 
 function gameHour() { return G.gameMins / 60; }
@@ -826,31 +914,124 @@ function timePeriod(h) {
 }
 
 function renderTimebar() {
-  const h = gameHour();
-  const hh = Math.floor(G.gameMins / 60) % 24;
-  const mm = Math.floor(G.gameMins % 60);
-  const p  = timePeriod(h);
-  const dayPct = (G.gameMins / DAY_MINS) * 100;
+  const h   = gameHour();
+  const hh  = Math.floor(G.gameMins / 60) % 24;
+  const mm  = Math.floor(G.gameMins % 60);
+  const p   = timePeriod(h);
+  const pct = ((G.gameMins - DAY_START) / (DAY_END - DAY_START)) * 100;
 
   document.getElementById('time-bar-clock').textContent =
     `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
   document.getElementById('time-bar-period').textContent = p.label;
   document.getElementById('time-bar').style.background = p.bg;
   const fill = document.getElementById('time-progress-fill');
-  fill.style.width = dayPct + '%';
+  fill.style.width = Math.min(100, Math.max(0, pct)) + '%';
   fill.style.background = `linear-gradient(90deg, ${p.fillc}, ${p.fill})`;
+}
+
+// ═══════════════════════════════
+//  DAILY REPORT
+// ═══════════════════════════════
+function showDailyReport() {
+  setPaused(true);
+  const d = G.daily;
+
+  // Find peak hour
+  let peakH = 7, peakC = 0;
+  d.hourlyCount.forEach((c, h) => { if (c > peakC) { peakC = c; peakH = h; } });
+
+  // Top floor destination
+  let topFloor = -1, topCount = 0;
+  Object.entries(d.byFloor).forEach(([f, c]) => { if (c > topCount) { topCount = c; topFloor = +f; } });
+  const topFloorLabel = topFloor >= 0
+    ? `${topFloor+1}F ${FLOOR_DEFS[topFloor]?.emoji || ''} ${FLOOR_DEFS[topFloor]?.name || ''}`
+    : '—';
+
+  // Special pax summary
+  const specials = Object.entries(d.byType)
+    .filter(([t]) => t !== 'normal')
+    .map(([t, c]) => `${PAX_TYPES[t].emoji}${PAX_TYPES[t].label} ×${c}`)
+    .join('　') || '無';
+
+  // Efficiency rating
+  const ratio = d.floorsCount > 0 ? (d.delivered / d.floorsCount * 10).toFixed(1) : '0.0';
+  let rating = '⭐';
+  if (+ratio >= 1.5) rating = '⭐⭐⭐';
+  else if (+ratio >= 0.8) rating = '⭐⭐';
+
+  const html = `
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:14px;">
+      <div style="text-align:center;font-size:22px;font-weight:900;color:var(--accent)">🌙 今日結束！</div>
+      <div style="text-align:center;font-size:13px;color:var(--text2);font-weight:700">無限塔 · 電梯日報</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${rCard('總送達','🧍',d.delivered,'人')}
+        ${rCard('總得分','⭐',G.score,'分')}
+        ${rCard('移動層數','🏢',d.floorsCount,'層')}
+        ${rCard('特殊獎勵','🎁',d.bonusScore,'分')}
+      </div>
+
+      <div style="background:var(--bg3);border-radius:14px;padding:12px 14px;border:2px solid var(--border2)">
+        <div style="font-size:11px;font-weight:800;color:var(--text3);margin-bottom:8px">📊 今日洞察</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);line-height:2">
+          🕐 最忙時段：<b style="color:var(--accent)">${String(peakH).padStart(2,'0')}:00 – ${String(peakH+1).padStart(2,'0')}:00</b>（${peakC}人次）<br>
+          🏆 最熱門樓層：<b style="color:var(--pink)">${topFloorLabel}</b>（${topCount}人）<br>
+          ⚡ 效率指數：<b style="color:var(--green)">${ratio}</b> ${rating}
+        </div>
+      </div>
+
+      <div style="background:var(--bg3);border-radius:14px;padding:12px 14px;border:2px solid var(--border2)">
+        <div style="font-size:11px;font-weight:800;color:var(--text3);margin-bottom:6px">🌟 特殊乘客</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text2);line-height:1.8">${specials}</div>
+      </div>
+
+      <button id="report-next-day" style="
+        width:100%;padding:14px;border-radius:14px;
+        border:none;background:var(--accent);color:white;
+        font-family:var(--fun);font-size:17px;font-weight:900;
+        cursor:pointer;box-shadow:0 4px 0 #9040c0;
+      ">☀️ 開始新的一天</button>
+    </div>`;
+
+  const overlay = document.getElementById('report-overlay');
+  document.getElementById('report-body').innerHTML = html;
+  overlay.classList.add('open');
+
+  document.getElementById('report-next-day').addEventListener('click', () => {
+    overlay.classList.remove('open');
+    // Reset for new day
+    G.gameMins  = DAY_START;
+    G.dayEnded  = false;
+    G.passengers = [];
+    G.daily = {
+      delivered: 0, byType: {}, byFloor: {},
+      bonusScore: 0, peakHour: { h:7, count:0 },
+      hourlyCount: new Array(24).fill(0),
+      floorsCount: 0,
+    };
+    G.floorsCount = 0;
+    G.lastCountedFloor = G.floor;
+    setPaused(false);
+    addLog('☀️ 新的一天開始了！', 'gold');
+  }, { once: true });
+}
+
+function rCard(label, icon, val, unit) {
+  return `<div style="background:white;border-radius:12px;padding:10px;border:2px solid var(--border2);box-shadow:0 3px 0 var(--border2);text-align:center">
+    <div style="font-size:18px">${icon}</div>
+    <div style="font-size:20px;font-weight:900;color:var(--accent)">${val}</div>
+    <div style="font-size:10px;font-weight:800;color:var(--text3)">${label}（${unit}）</div>
+  </div>`;
 }
 
 // ═══════════════════════════════
 //  SPAWN (personality-driven)
 // ═══════════════════════════════
 function pickDest(src) {
-  // weighted random dest: prefer named floors
   const candidates = [];
   for (let f = 0; f < NUM_FLOORS; f++) {
     if (f === src) continue;
-    const w = FLOOR_DEFS[f] ? 3 : 1;
-    candidates.push({ f, w });
+    candidates.push({ f, w: FLOOR_DEFS[f] ? 3 : 1 });
   }
   const total = candidates.reduce((s, c) => s + c.w, 0);
   let r = Math.random() * total;
@@ -859,22 +1040,18 @@ function pickDest(src) {
 }
 
 function spawnPax(now) {
+  if (G.dayEnded) return;
   const h = gameHour();
+  const weights = SPAWN_POOL.map(e => Math.max(0, e.wf(h)));
+  const total   = weights.reduce((s, ww) => s + ww, 0);
+  if (total <= 0) return;
 
-  // Compute total weight across all pool entries
-  const weights = SPAWN_POOL.map(e => Math.max(0, e.w(h)));
-  const total   = weights.reduce((s, w) => s + w, 0);
-  if (total <= 0) return; // nobody out at this hour
-
-  // Base interval: lighter at night, busier at peak
-  const baseInterval = 6500;
+  const baseInterval = 5000;
   const peakMult = Math.max(0.4, 1 - total * 0.5);
   const interval = baseInterval * peakMult;
-
   if (now - G.spawnTimer < interval) return;
   G.spawnTimer = now;
 
-  // Pick a pool entry weighted by w(h)
   let r = Math.random() * total;
   let entry = SPAWN_POOL[SPAWN_POOL.length - 1];
   for (let i = 0; i < SPAWN_POOL.length; i++) {
@@ -882,18 +1059,16 @@ function spawnPax(now) {
     if (r <= 0) { entry = SPAWN_POOL[i]; break; }
   }
 
-  // Resolve src / dest
   let src  = entry.src  >= 0 ? entry.src  : Math.floor(Math.random() * NUM_FLOORS);
   let dest = entry.dest >= 0 ? entry.dest : pickDest(src);
   if (src === dest) dest = pickDest(src);
   if (src === dest) return;
 
-  G.passengers.push({
-    id: G.uid++, start: src, dest,
-    dir: dest > src ? 1 : -1,
-    type: 'normal',
-    waiting: true,
-  });
+  // Rare celeb chance
+  let type = pickPaxType(src);
+  if (type === 'celeb' && Math.random() > 0.15) type = 'vip'; // celeb is rare
+
+  G.passengers.push({ id: G.uid++, start: src, dest, dir: dest > src ? 1 : -1, type, waiting: true });
 }
 
 // ═══════════════════════════════
@@ -939,11 +1114,13 @@ function renderAll() {
     const nameTag = def
       ? `<div class="floor-name" style="background:${def.color};color:${def.tc}">${def.emoji}${def.name}</div>`
       : '';
-    const paxHtml = here.slice(0, 6).map(() => `
-      <div class="pax-fig">
-        <div class="pax-head"></div>
-        <div class="pax-body"></div>
-      </div>`).join('');
+    const paxHtml = here.slice(0, 6).map(p => {
+      const pt = PAX_TYPES[p.type] || PAX_TYPES.normal;
+      return `<div class="pax-fig" title="${pt.label}">
+        <div class="pax-head" style="background:${pt.headC}"></div>
+        <div class="pax-body" style="background:${pt.bodyC}"></div>
+      </div>`;
+    }).join('');
     // Show count if more than 6
     const extra = here.length > 6 ? `<span style="font-size:9px;font-weight:800;color:var(--text3)">+${here.length-6}</span>` : '';
     pArea.innerHTML = nameTag + paxHtml + extra;
@@ -1082,12 +1259,13 @@ function renderPaxOverlay() {
     return;
   }
   list.innerHTML = G.pax.map(p => {
+    const pt  = PAX_TYPES[p.type] || PAX_TYPES.normal;
     const def = FLOOR_DEFS[p.dest];
-    const label = def ? `${def.emoji} ${def.name} (${p.dest+1}F)` : `${p.dest+1}F`;
+    const bonus = pt.scoreBonus > 0 ? `<span style="font-size:10px;color:#f5a623;font-weight:800"> +${pt.scoreBonus}bonus</span>` : '';
     return `<div class="pax-list-row">
-      <span class="pax-list-icon">🧍</span>
+      <span class="pax-list-icon">${pt.emoji}</span>
       <span class="pax-list-dest">${p.dest+1}F</span>
-      <span class="pax-list-label">${def ? def.emoji+' '+def.name : '目的地'}</span>
+      <span class="pax-list-label">${def ? def.emoji+' '+def.name : '目的地'}${bonus}</span>
     </div>`;
   }).join('');
 }
